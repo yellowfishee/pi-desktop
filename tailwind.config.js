@@ -7,35 +7,9 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
-      colors: {
-        // 语义色 — 命名即用途
-        app: {
-          bg:      'var(--app-bg)',
-          sidebar: 'var(--sidebar-bg)',
-          surface: 'var(--surface-bg)',
-          raised:  'var(--raised-bg)',
-        },
-        edge: {
-          DEFAULT: 'var(--border-color)',
-          hover:   'var(--border-hover)',
-        },
-        fg: {
-          DEFAULT: 'var(--fg-color)',
-          muted:   'var(--fg-muted)',
-          subtle:  'var(--fg-subtle)',
-        },
-      },
       fontFamily: {
         ui: ['var(--font-ui)'],
         mono: ['var(--font-mono)'],
-      },
-      transitionDuration: {
-        DEFAULT: '150ms',
-      },
-      borderRadius: {
-        DEFAULT: '0.5rem',
-        lg: '0.625rem',
-        xl: '0.75rem',
       },
     },
     fontSize: {
@@ -52,10 +26,4 @@ export default {
     },
   },
   plugins: [],
-  safelist: [
-    // 设计系统工具类 — 样式文件中 @apply 使用，确保 JIT 生成
-    { pattern: /^(bg|text|border)-app-(bg|sidebar|surface|raised)$/ },
-    { pattern: /^(bg|text|border)-fg(-muted|-subtle)?$/ },
-    { pattern: /^border-edge(-hover)?$/ },
-  ],
 };

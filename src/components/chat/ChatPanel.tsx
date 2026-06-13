@@ -49,7 +49,7 @@ export default function ChatPanel() {
   }, [messages, isStreaming]);
 
   return (
-    <div className="h-full flex flex-col bg-app-bg relative">
+    <div className="h-full flex flex-col bg-white dark:bg-[#1e1e2e] relative">
       {/* 悬浮按钮 — 左侧 */}
       <div className="absolute top-3 left-5 z-20 flex items-center gap-1">
         <button onClick={toggleSidebar} className="btn-icon" title={sidebarCollapsed ? '展开侧边栏' : '折叠侧边栏'}>
