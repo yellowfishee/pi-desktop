@@ -8,41 +8,36 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+        // 语义色 — 命名即用途
+        app: {
+          bg:      'var(--app-bg)',
+          sidebar: 'var(--sidebar-bg)',
+          surface: 'var(--surface-bg)',
+          raised:  'var(--raised-bg)',
         },
-        surface: {
-          light: '#ffffff',
-          dark: '#1e1e2e',
+        border: {
+          DEFAULT: 'var(--border-color)',
+          hover:   'var(--border-hover)',
         },
-        sidebar: {
-          light: '#f8fafc',
-          dark: '#181825',
-        },
-        chat: {
-          light: '#ffffff',
-          dark: '#1e1e2e',
-        },
-        input: {
-          light: '#f1f5f9',
-          dark: '#313244',
+        fg: {
+          DEFAULT: 'var(--fg-color)',
+          muted:   'var(--fg-muted)',
+          subtle:  'var(--fg-subtle)',
         },
       },
       fontFamily: {
         ui: ['var(--font-ui)'],
         mono: ['var(--font-mono)'],
       },
+      transitionDuration: {
+        DEFAULT: '150ms',
+      },
+      borderRadius: {
+        DEFAULT: '0.5rem',
+        lg: '0.625rem',
+        xl: '0.75rem',
+      },
     },
-    // 覆盖默认字号，用 CSS 变量实现全局缩放
     fontSize: {
       'xxs': ['var(--font-xs)',  { lineHeight: '1.25rem' }],
       'xs':  ['var(--font-sm)',  { lineHeight: '1.25rem' }],
