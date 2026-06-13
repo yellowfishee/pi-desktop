@@ -28,7 +28,7 @@ function ToolCard({ block }: Props) {
     'tool';
   const toolKind = toolName.toLowerCase();
   const args = block.arguments || rawBlock.input || rawBlock.args || {};
-  const [expanded, setExpanded] = useState(() => isError || toolKind === 'edit');
+  const [expanded, setExpanded] = useState(() => isError || toolKind === 'edit' || toolKind === 'write');
 
   const resultText = useMemo(() => getResultText(result), [result]);
   const partialText = useMemo(() => getPartialText(block.partialResult), [block.partialResult]);
@@ -114,17 +114,39 @@ function renderCallPreview(toolKind: string, args: ToolArgs, renderedArgs: strin
     return <TerminalBlock text={String(args.command || args.cmd || '')} prompt />;
   }
 
-  if (toolKind === 'read' || toolKind === 'write' || toolKind === 'edit') {
+  if (toolKind === 'edit' && typeof args.oldString === 'string' && typeof args.newString === 'string') {
+    return (
+      <GitDiff
+        filePath={getPath(args)}
+        oldStr={args.oldString}
+        newStr={args.newString}
+      />
+    );
+  }
+
+  if (toolKind === 'write') {
+    const content = String(args.content || args.text || '');
+    if (content) {
+      return (
+        <GitDiff
+          filePath={getPath(args)}
+          oldStr=""
+          newStr={content}
+        />
+      );
+    }
+    return (
+      <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-950">
+        <FileHeader path={getPath(args)} action="创建" />
+      </div>
+    );
+  }
+
+  if (toolKind === 'read') {
     const path = getPath(args);
     return (
       <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-950">
-        <div className="font-mono text-xs text-gray-700 dark:text-gray-300">{path || '(无路径)'}</div>
-        {toolKind === 'edit' && Boolean(args.oldString) && Boolean(args.newString) && (
-          <div className="mt-2 grid gap-2 text-xxs sm:grid-cols-2">
-            <Snippet label="之前" text={String(args.oldString)} tone="remove" />
-            <Snippet label="之后" text={String(args.newString)} tone="add" />
-          </div>
-        )}
+        <FileHeader path={path} action="读取" />
       </div>
     );
   }
@@ -222,19 +244,136 @@ function PlainOutput({ text, error }: { text: string; error: boolean }) {
   );
 }
 
-function Snippet({ label, text, tone }: { label: string; text: string; tone: 'add' | 'remove' }) {
+function FileHeader({ path, action }: { path: string; action: string }) {
   return (
-    <div className="min-w-0 overflow-hidden rounded border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-      <div className={`border-b px-2 py-1 font-mono text-[10px] uppercase ${
-        tone === 'add'
-          ? 'border-green-100 bg-green-50 text-green-700 dark:border-green-900/50 dark:bg-green-950/20 dark:text-green-300'
-          : 'border-red-100 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300'
-      }`}>
-        {label}
-      </div>
-      <pre className="max-h-24 overflow-auto px-2 py-1 font-mono text-xxs text-gray-700 dark:text-gray-300">{text}</pre>
+    <div className="flex items-center gap-2 font-mono text-xs">
+      <span className="text-gray-400 dark:text-gray-500">{action}</span>
+      <span className="text-gray-700 dark:text-gray-300 truncate">{path || '(无路径)'}</span>
     </div>
   );
+}
+
+function GitDiff({ filePath, oldStr, newStr }: { filePath: string; oldStr: string; newStr: string }) {
+  const diffLines = useMemo(() => computeUnifiedDiff(oldStr, newStr), [oldStr, newStr]);
+  const isNewFile = oldStr === '';
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-gray-700/40 bg-[#0d1117]">
+      {/* diff header */}
+      <div className="flex items-center gap-2 border-b border-gray-700/40 bg-[#161b22] px-3 py-2">
+        <span className="font-mono text-[11px] text-gray-300 truncate">{filePath || '(无路径)'}</span>
+        <span className="ml-auto flex items-center gap-1.5 text-[10px]">
+          <span className="text-gray-500">{diffLines.stats}</span>
+        </span>
+      </div>
+
+      {/* diff hunk header */}
+      <div className="px-3 py-1 font-mono text-[10px] text-blue-400/70 bg-[#0d1117]">
+        {isNewFile
+          ? `@@ -0,0 +1,${newStr.split('\n').length || 1} @@`
+          : `@@ ${diffLines.hunkHeader || ''} @@`}
+      </div>
+
+      {/* diff content */}
+      <div className="font-mono text-xs leading-relaxed overflow-x-auto">
+        {diffLines.lines.map((line, i) => (
+          <DiffLine key={i} line={line} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DiffLine({ line }: { line: { text: string; type: 'add' | 'remove' | 'context' } }) {
+  const bgClass =
+    line.type === 'add'
+      ? 'bg-green-900/20 border-l-2 border-green-500/50'
+      : line.type === 'remove'
+        ? 'bg-red-900/20 border-l-2 border-red-500/50'
+        : 'border-l-2 border-transparent';
+
+  const textClass =
+    line.type === 'add'
+      ? 'text-green-300'
+      : line.type === 'remove'
+        ? 'text-red-300'
+        : 'text-gray-300';
+
+  const prefix = line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' ';
+
+  return (
+    <div className={`flex ${bgClass}`}>
+      <span className={`w-5 flex-shrink-0 text-right pr-3 select-none text-gray-500 text-[10px]`}>
+        {prefix}
+      </span>
+      <span className={`whitespace-pre-wrap break-all ${textClass}`}>
+        {line.text}
+      </span>
+    </div>
+  );
+}
+
+function computeUnifiedDiff(oldText: string, newText: string): {
+  lines: { text: string; type: 'add' | 'remove' | 'context' }[];
+  stats: string;
+  hunkHeader: string;
+} {
+  const oldLines = oldText.split('\n');
+  const newLines = newText.split('\n');
+
+  // Simple line-by-line diff using LCS
+  const m = oldLines.length;
+  const n = newLines.length;
+
+  // Build LCS table
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (oldLines[i - 1] === newLines[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+
+  // Backtrack to produce diff
+  const result: { text: string; type: 'add' | 'remove' | 'context' }[] = [];
+  let adds = 0;
+  let removes = 0;
+  let oldStart = 1;
+  let newStart = 1;
+  let oldCount = 0;
+  let newCount = 0;
+
+  const backtrack = (i: number, j: number) => {
+    if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
+      backtrack(i - 1, j - 1);
+      result.push({ text: oldLines[i - 1], type: 'context' });
+      oldCount++;
+      newCount++;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      backtrack(i, j - 1);
+      result.push({ text: newLines[j - 1], type: 'add' });
+      adds++;
+      newCount++;
+    } else if (i > 0 && (j === 0 || dp[i][j - 1] < dp[i - 1][j])) {
+      backtrack(i - 1, j);
+      result.push({ text: oldLines[i - 1], type: 'remove' });
+      removes++;
+      oldCount++;
+    }
+  };
+
+  backtrack(m, n);
+
+  const stats = `${removes > 0 ? `-${removes} ` : ''}${adds > 0 ? `+${adds}` : ''}`;
+
+  return {
+    lines: result,
+    stats,
+    hunkHeader: `-${oldStart},${oldCount} +${newStart},${newCount}`,
+  };
 }
 
 function getToolSummary(toolKind: string, args: ToolArgs): string {
