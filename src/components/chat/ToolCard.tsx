@@ -180,19 +180,19 @@ function renderToolResult(
 
 function TerminalBlock({ text, prompt = false, error = false }: { text: string; prompt?: boolean; error?: boolean }) {
   return (
-    <pre className={`max-h-80 overflow-auto rounded-md border px-3 py-2 font-mono text-xs leading-relaxed ${
+    <pre className={`max-h-80 overflow-auto rounded-lg border px-3 py-2 font-mono text-xs leading-relaxed ${
       error
-        ? 'border-red-900/40 bg-red-950/30 text-red-100'
-        : 'border-gray-800 bg-gray-950 text-gray-100'
+        ? 'border-red-200/60 bg-red-50 text-red-800 dark:border-red-800/40 dark:bg-red-950/30 dark:text-red-200'
+        : 'border-gray-200/60 bg-gray-50 text-gray-800 dark:border-gray-700/60 dark:bg-gray-900 dark:text-gray-200'
     }`}>
-      {prompt ? `$ ${text}` : text || ' '}
+      {prompt ? <><span className="select-none text-gray-400 mr-1.5">$</span>{text}</> : text || ' '}
     </pre>
   );
 }
 
 function CodeBlock({ text }: { text: string }) {
   return (
-    <pre className="max-h-96 overflow-auto rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs leading-relaxed text-gray-800 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200">
+    <pre className="max-h-96 overflow-auto rounded-lg border border-gray-200/60 bg-[#fafbfc] px-3 py-2 font-mono text-xs leading-relaxed text-gray-800 dark:border-gray-700/60 dark:bg-gray-900 dark:text-gray-200">
       {text || ' '}
     </pre>
   );
@@ -200,7 +200,7 @@ function CodeBlock({ text }: { text: string }) {
 
 function DiffBlock({ text }: { text: string }) {
   return (
-    <pre className="max-h-96 overflow-auto rounded-md border border-gray-200 bg-gray-950 px-3 py-2 font-mono text-xs leading-relaxed dark:border-gray-700">
+    <pre className="max-h-96 overflow-auto rounded-lg border border-gray-200/60 bg-[#f6f8fa] px-3 py-2 font-mono text-xs leading-relaxed dark:border-gray-700/60 dark:bg-[#161b22]">
       {text.split('\n').map((line, index) => (
         <div key={index} className={getDiffLineClass(line)}>
           {line || ' '}
@@ -214,9 +214,9 @@ function ListOutput({ text, error }: { text: string; error: boolean }) {
   const lines = text.split('\n').filter(Boolean);
   if (lines.length === 0) return <PlainOutput text={error ? '无结果' : '无输出'} error={error} />;
   return (
-    <div className="max-h-80 overflow-auto rounded-md border border-gray-200 bg-gray-50 py-1 dark:border-gray-700 dark:bg-gray-950">
+    <div className="max-h-80 overflow-auto rounded-lg border border-gray-200/60 bg-gray-50 py-1 dark:border-gray-700/60 dark:bg-gray-900">
       {lines.map((line, index) => (
-        <div key={index} className="border-b border-gray-200 px-3 py-1 font-mono text-xxs text-gray-700 last:border-b-0 dark:border-gray-800 dark:text-gray-300">
+        <div key={index} className="border-b border-gray-200/40 px-3 py-1 font-mono text-xxs text-gray-700 last:border-b-0 dark:border-gray-800/60 dark:text-gray-300">
           {line}
         </div>
       ))}
@@ -226,10 +226,10 @@ function ListOutput({ text, error }: { text: string; error: boolean }) {
 
 function PlainOutput({ text, error }: { text: string; error: boolean }) {
   return (
-    <div className={`whitespace-pre-wrap rounded-md border px-3 py-2 text-xs leading-relaxed ${
+    <div className={`whitespace-pre-wrap rounded-lg border px-3 py-2 text-xs leading-relaxed ${
       error
-        ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/70 dark:bg-red-950/20 dark:text-red-300'
-        : 'border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300'
+        ? 'border-red-200/60 bg-red-50 text-red-800 dark:border-red-800/40 dark:bg-red-950/20 dark:text-red-200'
+        : 'border-gray-200/60 bg-gray-50 text-gray-700 dark:border-gray-700/60 dark:bg-gray-900 dark:text-gray-300'
     }`}>
       {text}
     </div>
@@ -280,11 +280,11 @@ function guessDiff(text: string): string {
 }
 
 function getDiffLineClass(line: string): string {
-  if (line.startsWith('+') && !line.startsWith('+++')) return 'text-green-300';
-  if (line.startsWith('-') && !line.startsWith('---')) return 'text-red-300';
-  if (line.startsWith('@@')) return 'text-blue-300';
-  if (line.startsWith('diff ') || line.startsWith('---') || line.startsWith('+++')) return 'text-gray-400';
-  return 'text-gray-200';
+  if (line.startsWith('+') && !line.startsWith('+++')) return 'text-green-700 dark:text-green-300';
+  if (line.startsWith('-') && !line.startsWith('---')) return 'text-red-700 dark:text-red-300';
+  if (line.startsWith('@@')) return 'text-blue-600 dark:text-blue-300';
+  if (line.startsWith('diff ') || line.startsWith('---') || line.startsWith('+++')) return 'text-gray-500 dark:text-gray-400';
+  return 'text-gray-700 dark:text-gray-300';
 }
 
 export default memo(ToolCard);

@@ -164,10 +164,10 @@ function BashBubble({ message }: Props) {
         <IconTerminal className="h-3.5 w-3.5" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="mb-2 font-mono text-[11px] text-gray-500/80 dark:text-gray-400/80">
-          $ {message.command}
+        <div className="mb-2 font-mono text-[11px] text-gray-500 dark:text-gray-400">
+          <span className="select-none text-gray-400 mr-1.5">$</span>{message.command}
         </div>
-        <div className="max-h-80 overflow-y-auto overflow-x-auto rounded-xl border border-gray-800/80 bg-gray-950 p-3 font-mono text-xs leading-relaxed text-gray-100">
+        <div className="max-h-80 overflow-y-auto overflow-x-auto rounded-xl border border-gray-200/60 bg-gray-50 p-3 font-mono text-xs leading-relaxed text-gray-800 dark:border-gray-700/60 dark:bg-gray-900 dark:text-gray-200">
           {displayLines.map((line, i) => (
             <div key={i} className="whitespace-pre-wrap">{line || ' '}</div>
           ))}
