@@ -77,6 +77,7 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
       activeSessionId: id,
       activeSessionFile: file,
       activeProject: project?.name || cur || '',
+      activeProjectDir: project?.dir_name || get().activeProjectDir || '',
     });
   },
 

@@ -56,6 +56,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::check_pi_available,
+            commands::list_git_changes,
             commands::list_sessions,
             commands::read_session_messages,
             commands::delete_session_file,

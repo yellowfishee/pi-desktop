@@ -11,13 +11,7 @@ use tokio::sync::{oneshot, Mutex};
 pub async fn spawn_pi_and_reader(
     app_handle: AppHandle,
     pending_commands: Arc<Mutex<HashMap<String, oneshot::Sender<Value>>>>,
-) -> Result<
-    (
-        BufWriter<tokio::process::ChildStdin>,
-        tokio::process::Child,
-    ),
-    String,
-> {
+) -> Result<(BufWriter<tokio::process::ChildStdin>, tokio::process::Child), String> {
     let pi_candidates: &[&str] = if cfg!(target_os = "windows") {
         &["pi", "pi.cmd", "pi.exe"]
     } else {
@@ -87,11 +81,7 @@ async fn stdout_reader_task(
             }
         };
 
-        match value
-            .get("type")
-            .and_then(|t| t.as_str())
-            .unwrap_or("")
-        {
+        match value.get("type").and_then(|t| t.as_str()).unwrap_or("") {
             "response" => {
                 if let Some(id) = value.get("id").and_then(|i| i.as_str()) {
                     let mut pending_map = pending_commands.lock().await;

@@ -373,6 +373,21 @@ export interface ProjectMeta {
   sessions: SessionMeta[];
 }
 
+export interface GitChangeFile {
+  path: string;
+  old_path?: string | null;
+  status: string;
+  additions: number;
+  deletions: number;
+  preview: string;
+}
+
+export interface GitChanges {
+  branch: string;
+  root: string;
+  files: GitChangeFile[];
+}
+
 // --- UI 类型 ---
 
 export interface Toast {

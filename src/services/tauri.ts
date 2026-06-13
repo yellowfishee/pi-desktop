@@ -9,6 +9,7 @@ import type {
   ExtensionUIRequest,
   RpcCommand,
   RpcResponse,
+  GitChanges,
 } from '../types/rpc';
 
 // ============================================================
@@ -114,6 +115,13 @@ export async function deleteProject(dirName: string): Promise<void> {
 export async function renameSessionFile(sessionPath: string, name: string): Promise<void> {
   if (!isTauriRuntime()) return;
   return invoke('rename_session_file', { sessionPath, name });
+}
+
+export async function listGitChanges(dirName: string): Promise<GitChanges> {
+  if (!isTauriRuntime()) {
+    return { branch: 'preview', root: '', files: [] };
+  }
+  return invoke<GitChanges>('list_git_changes', { dirName });
 }
 
 export async function listSessions(): Promise<

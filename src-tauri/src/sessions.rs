@@ -73,14 +73,17 @@ pub fn scan_projects() -> Vec<ProjectMeta> {
 
         let session_name = read_session_name(&path);
 
-        projects.entry((project_name, dir_name)).or_default().push(SessionMeta {
-            file_path,
-            session_id,
-            session_name,
-            timestamp,
-            message_count: None,
-            cwd: None,
-        });
+        projects
+            .entry((project_name, dir_name))
+            .or_default()
+            .push(SessionMeta {
+                file_path,
+                session_id,
+                session_name,
+                timestamp,
+                message_count: None,
+                cwd: None,
+            });
     }
 
     let mut result: Vec<ProjectMeta> = projects
@@ -89,7 +92,7 @@ pub fn scan_projects() -> Vec<ProjectMeta> {
             sessions.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
             ProjectMeta {
                 name: name.clone(),
-                path: name,
+                path: decode_project_path(&dir_name),
                 dir_name: dir_name.clone(),
                 sessions,
             }
@@ -160,7 +163,7 @@ fn extract_text(content: &Value) -> String {
 }
 
 /// 解码 pi 的路径编码: "--E--workspace-github-pi_desktop--" → "E:\\workspace\\github\\pi_desktop"
-fn decode_project_path(encoded: &str) -> String {
+pub fn decode_project_path(encoded: &str) -> String {
     let inner = encoded
         .strip_prefix("--")
         .and_then(|s| s.strip_suffix("--"))

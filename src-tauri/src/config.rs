@@ -72,8 +72,7 @@ pub fn save_config(config: &AppConfig) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("无法创建配置目录: {}", e))?;
     }
-    let content =
-        serde_json::to_string_pretty(config).map_err(|e| format!("序列化失败: {}", e))?;
+    let content = serde_json::to_string_pretty(config).map_err(|e| format!("序列化失败: {}", e))?;
     std::fs::write(&path, content).map_err(|e| format!("写入失败: {}", e))?;
     eprintln!("[config] 已保存到 {}", path.display());
     Ok(())

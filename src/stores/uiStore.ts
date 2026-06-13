@@ -43,6 +43,7 @@ interface UIStoreState {
 
   // 文件变更视图
   changesOpen: boolean;
+  changesWidth: number;
   activeDiff: FileDiff | null;
 
   // 队列
@@ -67,6 +68,7 @@ interface UIStoreState {
   removeExtensionStatus: (key: string) => void;
   setExtensionWidget: (key: string, lines: string[] | undefined, placement?: string) => void;
   setChangesOpen: (open: boolean) => void;
+  setChangesWidth: (w: number) => void;
   setActiveDiff: (diff: FileDiff | null) => void;
   setQueues: (steering: string[], followUp: string[]) => void;
 }
@@ -88,6 +90,7 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
   extensionStatuses: {},
   extensionWidgets: {},
   changesOpen: false,
+  changesWidth: 420,
   activeDiff: null,
   steeringQueue: [],
   followUpQueue: [],
@@ -170,6 +173,7 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
   },
 
   setChangesOpen: (open) => set({ changesOpen: open }),
+  setChangesWidth: (w) => set({ changesWidth: w }),
   setActiveDiff: (diff) => set({ activeDiff: diff }),
   setQueues: (steering, followUp) => set({ steeringQueue: steering, followUpQueue: followUp }),
 }));

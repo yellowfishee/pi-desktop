@@ -3,10 +3,30 @@
 use crate::config::{self, AppConfig};
 use crate::pi_check::{find_pi, PiCheckResult};
 use crate::pi_process::spawn_pi_and_reader;
-use crate::sessions::{scan_projects, ProjectMeta};
+use crate::sessions::{decode_project_path, scan_projects, ProjectMeta};
+use serde::Serialize;
 use serde_json::Value;
 use std::io::{BufRead, BufReader};
+use std::path::Path;
+use std::process::Command;
 use tauri::AppHandle;
+
+#[derive(Debug, Serialize)]
+pub struct GitChangeFile {
+    pub path: String,
+    pub old_path: Option<String>,
+    pub status: String,
+    pub additions: usize,
+    pub deletions: usize,
+    pub preview: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GitChanges {
+    pub branch: String,
+    pub root: String,
+    pub files: Vec<GitChangeFile>,
+}
 
 // ============================================================
 // pi / 会话命令
@@ -23,9 +43,70 @@ pub async fn list_sessions() -> Result<Vec<ProjectMeta>, String> {
 }
 
 #[tauri::command]
+pub async fn list_git_changes(dir_name: String) -> Result<GitChanges, String> {
+    let project_path = decode_project_path(&dir_name);
+    let project_dir = Path::new(&project_path);
+    if !project_dir.exists() {
+        return Err(format!("项目目录不存在: {}", project_path));
+    }
+
+    let root = run_git(project_dir, &["rev-parse", "--show-toplevel"])?;
+    let root = root.trim().to_string();
+    if root.is_empty() {
+        return Err("当前项目不是 Git 仓库".into());
+    }
+
+    let branch = run_git(Path::new(&root), &["branch", "--show-current"])
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    let branch = if branch.is_empty() {
+        run_git(Path::new(&root), &["rev-parse", "--short", "HEAD"])
+            .unwrap_or_else(|_| "detached".into())
+            .trim()
+            .to_string()
+    } else {
+        branch
+    };
+
+    let status_output = run_git(
+        Path::new(&root),
+        &["status", "--porcelain=v1", "--untracked-files=all"],
+    )?;
+    let numstat_output = run_git(Path::new(&root), &["diff", "--numstat", "HEAD", "--"])?;
+    let numstat = parse_numstat(&numstat_output);
+
+    let mut files = Vec::new();
+    for line in status_output.lines() {
+        if line.len() < 4 {
+            continue;
+        }
+        let code = line[..2].to_string();
+        let raw_path = line[3..].trim().to_string();
+        let (old_path, path) = parse_status_path(&raw_path);
+        let (additions, deletions) = numstat.get(&path).copied().unwrap_or((0, 0));
+        let preview = build_diff_preview(Path::new(&root), &path, &code);
+
+        files.push(GitChangeFile {
+            path,
+            old_path,
+            status: code,
+            additions,
+            deletions,
+            preview,
+        });
+    }
+
+    Ok(GitChanges {
+        branch,
+        root,
+        files,
+    })
+}
+
+#[tauri::command]
 pub async fn read_session_messages(session_path: String) -> Result<Vec<Value>, String> {
-    let file = std::fs::File::open(&session_path)
-        .map_err(|e| format!("无法打开文件: {}", e))?;
+    let file = std::fs::File::open(&session_path).map_err(|e| format!("无法打开文件: {}", e))?;
     let reader = BufReader::new(file);
     let mut messages: Vec<Value> = Vec::new();
 
@@ -270,4 +351,80 @@ fn uuid_simple() -> String {
         .unwrap_or_default()
         .as_nanos();
     format!("{:x}", ts)
+}
+
+fn run_git(cwd: &Path, args: &[&str]) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(cwd)
+        .output()
+        .map_err(|e| format!("无法执行 git: {}", e))?;
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(if err.is_empty() {
+            format!("git {:?} 执行失败", args)
+        } else {
+            err
+        });
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+fn parse_numstat(output: &str) -> std::collections::HashMap<String, (usize, usize)> {
+    let mut stats = std::collections::HashMap::new();
+    for line in output.lines() {
+        let mut parts = line.split('\t');
+        let additions = parts.next().and_then(parse_num).unwrap_or(0);
+        let deletions = parts.next().and_then(parse_num).unwrap_or(0);
+        if let Some(path) = parts.next() {
+            let (_, new_path) = parse_status_path(path.trim());
+            stats.insert(new_path, (additions, deletions));
+        }
+    }
+    stats
+}
+
+fn parse_num(value: &str) -> Option<usize> {
+    value.parse::<usize>().ok()
+}
+
+fn parse_status_path(raw: &str) -> (Option<String>, String) {
+    if let Some((old_path, new_path)) = raw.split_once(" -> ") {
+        (Some(clean_git_path(old_path)), clean_git_path(new_path))
+    } else {
+        (None, clean_git_path(raw))
+    }
+}
+
+fn clean_git_path(path: &str) -> String {
+    path.trim().trim_matches('"').replace("\\\"", "\"")
+}
+
+fn build_diff_preview(root: &Path, path: &str, status: &str) -> String {
+    if status == "??" {
+        return build_untracked_preview(root, path);
+    }
+
+    let unstaged = run_git(root, &["diff", "--", path]).unwrap_or_default();
+    if !unstaged.trim().is_empty() {
+        return unstaged;
+    }
+
+    run_git(root, &["diff", "--cached", "--", path]).unwrap_or_default()
+}
+
+fn build_untracked_preview(root: &Path, path: &str) -> String {
+    let full_path = root.join(path);
+    let Ok(content) = std::fs::read_to_string(full_path) else {
+        return String::new();
+    };
+
+    content
+        .lines()
+        .take(80)
+        .map(|line| format!("+{}", line))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
