@@ -29,7 +29,8 @@ function ToolCard({ block }: Props) {
     'tool';
   const toolKind = toolName.toLowerCase();
   const args = block.arguments || rawBlock.input || rawBlock.args || {};
-  const [expanded, setExpanded] = useState(() => isError || toolKind === 'edit' || toolKind === 'write');
+  const isFileTool = toolKind.includes('edit') || toolKind.includes('write') || toolKind === 'read';
+  const [expanded, setExpanded] = useState(() => isError || isFileTool);
 
   const resultText = useMemo(() => getResultText(result), [result]);
   const partialText = useMemo(() => getPartialText(block.partialResult), [block.partialResult]);
@@ -92,7 +93,7 @@ function ToolCard({ block }: Props) {
               {renderToolResult(toolKind, args, resultText, partialText, diffText, isError)}
             </div>
           )}
-          {(toolKind === 'edit' || toolKind === 'write') && (
+          {(isFileTool && !toolKind.includes('read')) && (
             <DiffViewLink toolKind={toolKind} args={args} />
           )}
         </div>
@@ -102,10 +103,10 @@ function ToolCard({ block }: Props) {
 }
 
 function ToolGlyph({ toolKind }: { toolKind: string }) {
-  if (toolKind === 'bash' || toolKind === 'shell') {
+  if (toolKind.includes('bash') || toolKind === 'shell') {
     return <IconTerminal className="h-3.5 w-3.5 text-gray-400" />;
   }
-  if (toolKind === 'edit' || toolKind === 'write') {
+  if (toolKind.includes('edit') || toolKind.includes('write')) {
     return <IconEdit className="h-3.5 w-3.5 text-gray-400" />;
   }
   return <span className="h-1.5 w-1.5 rounded-full bg-gray-300 dark:bg-gray-600" />;
@@ -114,11 +115,11 @@ function ToolGlyph({ toolKind }: { toolKind: string }) {
 function renderCallPreview(toolKind: string, args: ToolArgs, renderedArgs: string, hasArgs: boolean) {
   if (!hasArgs) return null;
 
-  if (toolKind === 'bash' || toolKind === 'shell') {
+  if (toolKind.includes('bash') || toolKind === 'shell') {
     return <TerminalBlock text={String(args.command || args.cmd || '')} prompt />;
   }
 
-  if (toolKind === 'read' || toolKind === 'write' || toolKind === 'edit') {
+  if (toolKind.includes('read') || toolKind.includes('write') || toolKind.includes('edit')) {
     const path = getPath(args);
     const action = toolKind === 'read' ? '读取' : toolKind === 'write' ? '创建' : '修改';
     return (
@@ -151,9 +152,9 @@ function renderToolResult(
   }
 
   // edit/write 工具结果：紧凑成功状态
-  if ((toolKind === 'edit' || toolKind === 'write') && !isError) {
+  if ((toolKind.includes('edit') || toolKind.includes('write')) && !isError) {
     const path = getPath(args);
-    const actionLabel = toolKind === 'edit' ? '已修改' : '已创建';
+    const actionLabel = toolKind.includes('edit') ? '已修改' : '已创建';
     return (
       <div className="rounded-md border border-green-200/60 bg-green-50/50 px-3 py-2 text-xs text-green-700 dark:border-green-900/50 dark:bg-green-950/10 dark:text-green-300">
         <span className="font-mono">{actionLabel}</span>
@@ -165,15 +166,15 @@ function renderToolResult(
     );
   }
 
-  if (toolKind === 'bash' || toolKind === 'shell') {
+  if (toolKind.includes('bash') || toolKind === 'shell') {
     return <TerminalBlock text={output} error={isError} />;
   }
 
-  if (toolKind === 'read') {
+  if (toolKind.includes('read')) {
     return <CodeBlock text={output} />;
   }
 
-  if (toolKind === 'grep' || toolKind === 'find' || toolKind === 'ls') {
+  if (toolKind === 'grep' || toolKind === 'find' || toolKind === 'ls' || toolKind.includes('grep') || toolKind.includes('find') || toolKind.includes('ls')) {
     return <ListOutput text={output} error={isError} />;
   }
 
@@ -252,10 +253,12 @@ function DiffViewLink({ toolKind, args }: { toolKind: string; args: ToolArgs }) 
   const activeDiff = useUIStore((s) => s.activeDiff);
   const path = getPath(args);
 
-  const oldStr = toolKind === 'edit' ? (getOldString(args) || '') : '';
-  const newStr = toolKind === 'edit' ? (getNewString(args) || '') : (getWriteContent(args) || '');
+  const isEdit = toolKind.includes('edit');
+  const oldStr = isEdit ? (getOldString(args) || '') : '';
+  const newStr = isEdit ? (getNewString(args) || '') : (getWriteContent(args) || '');
 
-  if (!newStr && !oldStr) return null;
+  // 至少有一个参数且是文件操作才显示
+  if (!path) return null;
 
   const isActive = activeDiff?.filePath === path && activeDiff?.toolKind === toolKind;
 
@@ -280,11 +283,11 @@ function DiffViewLink({ toolKind, args }: { toolKind: string; args: ToolArgs }) 
 }
 
 function getToolSummary(toolKind: string, args: ToolArgs): string {
-  if (toolKind === 'bash' || toolKind === 'shell') return String(args.command || args.cmd || '');
-  if (toolKind === 'grep') return [args.pattern, args.path].filter(Boolean).join(' in ');
-  if (toolKind === 'find') return [args.pattern, args.path].filter(Boolean).join(' in ');
-  if (toolKind === 'ls') return String(args.path || '.');
-  if (toolKind === 'read' || toolKind === 'write' || toolKind === 'edit') return getPath(args);
+  if (toolKind.includes('bash') || toolKind === 'shell') return String(args.command || args.cmd || '');
+  if (toolKind.includes('grep')) return [args.pattern, args.path].filter(Boolean).join(' in ');
+  if (toolKind.includes('find')) return [args.pattern, args.path].filter(Boolean).join(' in ');
+  if (toolKind === 'ls' || toolKind.includes('ls')) return String(args.path || '.');
+  if (toolKind.includes('read') || toolKind.includes('write') || toolKind.includes('edit')) return getPath(args);
   return '';
 }
 
@@ -293,23 +296,23 @@ function getPath(args: ToolArgs): string {
 }
 
 function getOldString(args: ToolArgs): string | undefined {
-  for (const key of ['oldString', 'old_str', 'oldText', 'old_text', 'old']) {
+  for (const key of ['oldString', 'old_string', 'old_str', 'oldText', 'old_text', 'old', 'search', 'pattern']) {
     const v = args[key];
-    if (typeof v === 'string') return v;
+    if (typeof v === 'string' && v.length > 0) return v;
   }
   return undefined;
 }
 
 function getNewString(args: ToolArgs): string | undefined {
-  for (const key of ['newString', 'new_str', 'newText', 'new_text', 'new']) {
+  for (const key of ['newString', 'new_string', 'new_str', 'newText', 'new_text', 'new', 'replace', 'replacement']) {
     const v = args[key];
-    if (typeof v === 'string') return v;
+    if (typeof v === 'string' && v.length > 0) return v;
   }
   return undefined;
 }
 
 function getWriteContent(args: ToolArgs): string | undefined {
-  for (const key of ['content', 'text', 'contents', 'fileText', 'file_text', 'data']) {
+  for (const key of ['content', 'text', 'contents', 'fileText', 'file_text', 'data', 'body']) {
     const v = args[key];
     if (typeof v === 'string' && v.length > 0) return v;
   }
