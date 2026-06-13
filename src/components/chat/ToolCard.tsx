@@ -91,6 +91,12 @@ function ToolCard({ block }: Props) {
               {renderToolResult(toolKind, args, resultText, partialText, diffText, isError)}
             </div>
           )}
+          {(toolKind === 'edit' || toolKind === 'write') && (
+            <DiffAction
+              toolKind={toolKind}
+              args={args}
+            />
+          )}
         </div>
       )}
     </section>
@@ -114,43 +120,12 @@ function renderCallPreview(toolKind: string, args: ToolArgs, renderedArgs: strin
     return <TerminalBlock text={String(args.command || args.cmd || '')} prompt />;
   }
 
-  if (toolKind === 'edit') {
-    const oldStr = getOldString(args);
-    const newStr = getNewString(args);
-    if (oldStr !== undefined && newStr !== undefined) {
-      return (
-        <GitDiff
-          filePath={getPath(args)}
-          oldStr={oldStr}
-          newStr={newStr}
-        />
-      );
-    }
-  }
-
-  if (toolKind === 'write') {
-    const content = getWriteContent(args);
-    if (content) {
-      return (
-        <GitDiff
-          filePath={getPath(args)}
-          oldStr=""
-          newStr={content}
-        />
-      );
-    }
-    return (
-      <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-950">
-        <FileHeader path={getPath(args)} action="创建" />
-      </div>
-    );
-  }
-
-  if (toolKind === 'read') {
+  if (toolKind === 'read' || toolKind === 'write' || toolKind === 'edit') {
     const path = getPath(args);
+    const action = toolKind === 'read' ? '读取' : toolKind === 'write' ? '创建' : '修改';
     return (
       <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-950">
-        <FileHeader path={path} action="读取" />
+        <FileHeader path={path} action={action} />
       </div>
     );
   }
@@ -177,19 +152,15 @@ function renderToolResult(
     return <DiffBlock text={diffText} />;
   }
 
-  // edit/write 工具结果：diff 已在预览区显示，结果区只显示简短的完成状态
+  // edit/write 工具结果：紧凑成功状态
   if ((toolKind === 'edit' || toolKind === 'write') && !isError) {
     const path = getPath(args);
     const actionLabel = toolKind === 'edit' ? '已修改' : '已创建';
     return (
-      <div className={`rounded-md border px-3 py-2 text-xs ${
-        isError
-          ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/70 dark:bg-red-950/20 dark:text-red-300'
-          : 'border-green-200/60 bg-green-50/50 text-green-700 dark:border-green-900/50 dark:bg-green-950/10 dark:text-green-300'
-      }`}>
+      <div className="rounded-md border border-green-200/60 bg-green-50/50 px-3 py-2 text-xs text-green-700 dark:border-green-900/50 dark:bg-green-950/10 dark:text-green-300">
         <span className="font-mono">{actionLabel}</span>
         {path && <span className="ml-1 text-gray-500 dark:text-gray-400">{path}</span>}
-        {output && output.length < 200 && (
+        {output && output.length < 200 && !output.startsWith('{') && (
           <span className="ml-2 text-gray-400 dark:text-gray-500">{output}</span>
         )}
       </div>
@@ -274,6 +245,49 @@ function FileHeader({ path, action }: { path: string; action: string }) {
     <div className="flex items-center gap-2 font-mono text-xs">
       <span className="text-gray-400 dark:text-gray-500">{action}</span>
       <span className="text-gray-700 dark:text-gray-300 truncate">{path || '(无路径)'}</span>
+    </div>
+  );
+}
+
+function DiffAction({ toolKind, args }: { toolKind: string; args: ToolArgs }) {
+  const [showDiff, setShowDiff] = useState(false);
+  const path = getPath(args);
+
+  const oldStr = toolKind === 'edit' ? getOldString(args) : '';
+  const newStr = toolKind === 'edit' ? getNewString(args) : getWriteContent(args);
+  const hasContent = oldStr !== undefined || (toolKind === 'write' && newStr);
+
+  if (!hasContent && toolKind !== 'edit') return null;
+  if (oldStr === undefined && newStr === undefined) return null;
+
+  return (
+    <div className="mt-2">
+      {!showDiff ? (
+        <button
+          onClick={() => setShowDiff(true)}
+          className="flex items-center gap-1.5 text-[10px] text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+        >
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          </svg>
+          查看变更
+        </button>
+      ) : (
+        <div>
+          <button
+            onClick={() => setShowDiff(false)}
+            className="mb-1.5 text-[10px] text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+          >
+            收起变更
+          </button>
+          <GitDiff
+            filePath={path}
+            oldStr={oldStr || ''}
+            newStr={newStr || ''}
+          />
+        </div>
+      )}
     </div>
   );
 }
