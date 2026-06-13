@@ -15,7 +15,7 @@ export default {
           surface: 'var(--surface-bg)',
           raised:  'var(--raised-bg)',
         },
-        border: {
+        edge: {
           DEFAULT: 'var(--border-color)',
           hover:   'var(--border-hover)',
         },

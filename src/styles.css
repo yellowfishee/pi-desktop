@@ -70,12 +70,12 @@ html, body, #root {
 @layer components {
   /* 圆角卡片 */
   .card {
-    @apply rounded border border-border bg-app-surface shadow-sm;
+    @apply rounded border border-edge bg-app-surface shadow-sm;
   }
 
   /* 轻微卡片 */
   .card-soft {
-    @apply rounded border border-border bg-app-raised;
+    @apply rounded border border-edge bg-app-raised;
   }
 
   /* 按钮: 幽灵风格 */
@@ -87,8 +87,8 @@ html, body, #root {
   /* 按钮: 图标圆形 */
   .btn-icon {
     @apply flex items-center justify-center w-8 h-8 rounded-full
-           border border-border bg-white/80 text-fg-muted shadow-sm
-           backdrop-blur transition hover:border-border-hover hover:text-fg
+           border border-edge bg-white/80 text-fg-muted shadow-sm
+           backdrop-blur transition hover:border-edge-hover hover:text-fg
            hover:shadow-md hover:bg-white
            dark:bg-gray-900/80 dark:hover:bg-gray-900;
   }
@@ -109,7 +109,7 @@ html, body, #root {
 
   /* 输入框 */
   .input {
-    @apply w-full h-8 rounded-lg border border-border
+    @apply w-full h-8 rounded-lg border border-edge
            bg-white/60 text-xs text-fg placeholder:text-fg-subtle
            outline-none transition focus:border-gray-300 focus:bg-white
            dark:bg-gray-900/60 dark:focus:border-gray-600 dark:focus:bg-gray-900;
@@ -127,7 +127,7 @@ html, body, #root {
 
   /* 分割线 */
   .divider {
-    @apply border-t border-border;
+    @apply border-t border-edge;
   }
 
   /* 行: hover 高亮 */
@@ -152,7 +152,7 @@ html, body, #root {
 
   .resize-handle-line {
     @apply absolute inset-y-0 left-1/2 w-px -translate-x-1/2
-           bg-border transition-colors group-hover:bg-gray-400
+           bg-edge transition-colors group-hover:bg-gray-400
            dark:group-hover:bg-gray-500;
   }
 
