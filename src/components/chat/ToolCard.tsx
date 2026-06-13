@@ -1,5 +1,4 @@
 import { memo, useMemo, useState } from 'react';
-import { useUIStore } from '../../stores/uiStore';
 import type { ContentBlock, ToolResultMessage } from '../../types/rpc';
 import { IconCheck, IconX, IconLoader, IconChevronRight, IconClock, IconTerminal, IconEdit } from '../shared/Icons';
 
@@ -79,10 +78,6 @@ function ToolCard({ block }: Props) {
               {summary}
             </span>
           )}
-          {/* 文件变更快捷入口 */}
-          {isFileTool && !toolKind.includes('read') && getPath(args) && (
-            <DiffViewLinkInline toolKind={toolKind} args={args} />
-          )}
         </span>
         <span className={`mt-1 flex-shrink-0 text-gray-400 transition-transform ${expanded ? 'rotate-90' : ''}`}>
           <IconChevronRight className="h-3 w-3" />
@@ -122,10 +117,13 @@ function renderCallPreview(toolKind: string, args: ToolArgs, renderedArgs: strin
 
   if (toolKind.includes('read') || toolKind.includes('write') || toolKind.includes('edit')) {
     const path = getPath(args);
-    const action = toolKind === 'read' ? '读取' : toolKind === 'write' ? '创建' : '修改';
+    const action = toolKind.includes('read') ? '读取' : toolKind.includes('write') ? '创建' : '修改';
     return (
       <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-950">
-        <FileHeader path={path} action={action} />
+        <div className="flex items-center gap-2 font-mono text-xs">
+          <span className="text-gray-400 dark:text-gray-500">{action}</span>
+          <span className="text-gray-700 dark:text-gray-300 truncate">{path || '(无路径)'}</span>
+        </div>
       </div>
     );
   }
@@ -147,12 +145,10 @@ function renderToolResult(
 ) {
   const output = resultText || partialText;
 
-  // 优先用后端返回的 diff
   if (diffText) {
     return <DiffBlock text={diffText} />;
   }
 
-  // edit/write 工具结果：紧凑成功状态
   if ((toolKind.includes('edit') || toolKind.includes('write')) && !isError) {
     const path = getPath(args);
     const actionLabel = toolKind.includes('edit') ? '已修改' : '已创建';
@@ -240,45 +236,6 @@ function PlainOutput({ text, error }: { text: string; error: boolean }) {
   );
 }
 
-function FileHeader({ path, action }: { path: string; action: string }) {
-  return (
-    <div className="flex items-center gap-2 font-mono text-xs">
-      <span className="text-gray-400 dark:text-gray-500">{action}</span>
-      <span className="text-gray-700 dark:text-gray-300 truncate">{path || '(无路径)'}</span>
-    </div>
-  );
-}
-
-function DiffViewLinkInline({ toolKind, args }: { toolKind: string; args: ToolArgs }) {
-  const setActiveDiff = useUIStore((s) => s.setActiveDiff);
-  const activeDiff = useUIStore((s) => s.activeDiff);
-  const path = getPath(args);
-
-  const isEdit = toolKind.includes('edit');
-  const oldStr = isEdit ? (getOldString(args) || '') : '';
-  const newStr = isEdit ? (getNewString(args) || '') : (getWriteContent(args) || '');
-
-  const isActive = activeDiff?.filePath === path;
-
-  return (
-    <span className="mt-1 inline-flex items-center gap-1">
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setActiveDiff(isActive ? null : { filePath: path, oldStr, newStr, toolKind: toolKind.includes('edit') ? 'edit' : 'write' });
-        }}
-        className={`text-[10px] hover:underline ${
-          isActive
-            ? 'text-blue-600 dark:text-blue-400'
-            : 'text-blue-500/70 dark:text-blue-400/70'
-        }`}
-      >
-        {isActive ? '已选中' : '查看变更'}
-      </button>
-    </span>
-  );
-}
-
 function getToolSummary(toolKind: string, args: ToolArgs): string {
   if (toolKind.includes('bash') || toolKind === 'shell') return String(args.command || args.cmd || '');
   if (toolKind.includes('grep')) return [args.pattern, args.path].filter(Boolean).join(' in ');
@@ -290,30 +247,6 @@ function getToolSummary(toolKind: string, args: ToolArgs): string {
 
 function getPath(args: ToolArgs): string {
   return String(args.path || args.file || args.filePath || args.file_path || args.target || '');
-}
-
-function getOldString(args: ToolArgs): string | undefined {
-  for (const key of ['oldString', 'old_string', 'old_str', 'oldText', 'old_text', 'old', 'search', 'pattern']) {
-    const v = args[key];
-    if (typeof v === 'string' && v.length > 0) return v;
-  }
-  return undefined;
-}
-
-function getNewString(args: ToolArgs): string | undefined {
-  for (const key of ['newString', 'new_string', 'new_str', 'newText', 'new_text', 'new', 'replace', 'replacement']) {
-    const v = args[key];
-    if (typeof v === 'string' && v.length > 0) return v;
-  }
-  return undefined;
-}
-
-function getWriteContent(args: ToolArgs): string | undefined {
-  for (const key of ['content', 'text', 'contents', 'fileText', 'file_text', 'data', 'body']) {
-    const v = args[key];
-    if (typeof v === 'string' && v.length > 0) return v;
-  }
-  return undefined;
 }
 
 function getResultText(result?: ToolResultMessage): string {
