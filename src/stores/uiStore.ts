@@ -2,6 +2,13 @@ import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import type { Toast, ExtensionDialogRequest } from '../types/rpc';
 
+export interface FileDiff {
+  filePath: string;
+  oldStr: string;
+  newStr: string;
+  toolKind: 'edit' | 'write';
+}
+
 interface UIStoreState {
   // 面板状态
   sidebarCollapsed: boolean;
@@ -34,7 +41,9 @@ interface UIStoreState {
   extensionStatuses: Record<string, string>;  // key → statusText
   extensionWidgets: Record<string, { lines: string[]; placement: string }>;
 
-
+  // 文件变更视图
+  changesOpen: boolean;
+  activeDiff: FileDiff | null;
 
   // 队列
   steeringQueue: string[];
@@ -57,6 +66,8 @@ interface UIStoreState {
   setExtensionStatus: (key: string, text: string) => void;
   removeExtensionStatus: (key: string) => void;
   setExtensionWidget: (key: string, lines: string[] | undefined, placement?: string) => void;
+  setChangesOpen: (open: boolean) => void;
+  setActiveDiff: (diff: FileDiff | null) => void;
   setQueues: (steering: string[], followUp: string[]) => void;
 }
 
@@ -76,6 +87,8 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
   toasts: [],
   extensionStatuses: {},
   extensionWidgets: {},
+  changesOpen: false,
+  activeDiff: null,
   steeringQueue: [],
   followUpQueue: [],
 
@@ -156,6 +169,8 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
     }
   },
 
+  setChangesOpen: (open) => set({ changesOpen: open }),
+  setActiveDiff: (diff) => set({ activeDiff: diff }),
   setQueues: (steering, followUp) => set({ steeringQueue: steering, followUpQueue: followUp }),
 }));
 
