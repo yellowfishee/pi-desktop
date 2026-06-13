@@ -116,9 +116,20 @@ function buildFileTree(changes: FileChange[]): TreeNode {
   const root: TreeNode = { name: '', path: '', children: [] };
 
   for (const change of changes) {
-    const parts = change.path.replace(/\\/g, '/').split('/').filter(Boolean);
-    let current = root;
+    const raw = change.path.replace(/\\/g, '/');
+    const parts = raw.split('/').filter(Boolean);
 
+    if (parts.length === 0) {
+      root.children.push({
+        name: raw || '(unknown)',
+        path: raw,
+        children: [],
+        change,
+      });
+      continue;
+    }
+
+    let current = root;
     for (let i = 0; i < parts.length; i++) {
       const name = parts[i];
       const fullPath = parts.slice(0, i + 1).join('/');
@@ -126,12 +137,7 @@ function buildFileTree(changes: FileChange[]): TreeNode {
 
       let child = current.children.find((c) => c.name === name);
       if (!child) {
-        child = {
-          name,
-          path: fullPath,
-          children: [],
-          change: isLast ? change : undefined,
-        };
+        child = { name, path: fullPath, children: [], change: isLast ? change : undefined };
         current.children.push(child);
       } else if (isLast) {
         child.change = change;
@@ -140,8 +146,8 @@ function buildFileTree(changes: FileChange[]): TreeNode {
     }
   }
 
-  // 对子节点排序：文件夹在前，文件在后
   sortTree(root);
+  console.log('[ChangesPanel] tree:', JSON.stringify(root, (key, val) => key === 'change' ? (val ? { path: val.path } : undefined) : val, 2));
   return root;
 }
 
@@ -171,6 +177,8 @@ function FileTreeNode({
 }) {
   const isDir = node.children.length > 0 || !node.change;
   const [expanded, setExpanded] = useState(depth < 2);
+
+  console.log('[ChangesPanel] FileTreeNode:', { name: node.name, depth, isDir, childrenCount: node.children.length, hasChange: !!node.change });
 
   // 根节点不渲染
   if (!node.name) {
