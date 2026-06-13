@@ -1,0 +1,168 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  --font-size-base: 14px;
+  --font-size-code: 13px;
+  --font-xs: 0.7rem;
+  --font-sm: 0.8rem;
+  --font-base: 0.875rem;
+  --font-lg: 1rem;
+  --font-xl: 1.125rem;
+
+  font-family: var(--font-ui);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+  color-scheme: light dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Markdown content styles */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin-top: 1.15em;
+  margin-bottom: 0.55em;
+  font-weight: 600;
+  color: inherit;
+}
+
+.markdown-body h1 { font-size: 1.25em; }
+.markdown-body h2 { font-size: 1.15em; }
+.markdown-body h3 { font-size: 1.05em; }
+
+.markdown-body p {
+  margin-bottom: 0.7em;
+  line-height: 1.7;
+}
+
+.markdown-body p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body ul, .markdown-body ol {
+  padding-left: 1.35em;
+  margin-bottom: 0.7em;
+}
+
+.markdown-body li {
+  margin-bottom: 0.3em;
+}
+
+.markdown-body pre {
+  margin: 0.75em 0;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.markdown-body code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.markdown-body :not(pre) > code {
+  background: #e2e8f0;
+  color: #1e293b;
+  padding: 0.15em 0.3em;
+  border-radius: 3px;
+}
+
+.dark .markdown-body :not(pre) > code {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+.markdown-body blockquote {
+  border-left: 3px solid #cbd5e1;
+  padding-left: 0.75em;
+  margin: 0.75em 0;
+  color: #64748b;
+}
+
+.dark .markdown-body blockquote {
+  border-left-color: #475569;
+}
+
+.markdown-body table {
+  border-collapse: collapse;
+  margin: 0.5em 0;
+  width: 100%;
+}
+
+.markdown-body th, .markdown-body td {
+  border: 1px solid #e2e8f0;
+  padding: 0.4em 0.75em;
+  text-align: left;
+}
+
+.dark .markdown-body th, .dark .markdown-body td {
+  border-color: #334155;
+}
+
+.markdown-body th {
+  background: #f1f5f9;
+  font-weight: 600;
+}
+
+.dark .markdown-body th {
+  background: #1e293b;
+}
+
+/* Streaming cursor animation */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.streaming-cursor::after {
+  content: '▍';
+  animation: blink 1s step-end infinite;
+  color: #3b82f6;
+}

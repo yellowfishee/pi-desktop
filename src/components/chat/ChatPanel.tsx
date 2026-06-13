@@ -1,0 +1,99 @@
+import { useRef, useEffect } from 'react';
+import { useMessageStore } from '../../stores/messageStore';
+import { useSessionStore } from '../../stores/sessionStore';
+import { useUIStore } from '../../stores/uiStore';
+import MessageBubble from './MessageBubble';
+import MessageInput from './MessageInput';
+import StatusBar from './StatusBar';
+import { IconPi } from '../shared/Icons';
+
+export default function ChatPanel() {
+  const messages = useMessageStore((s) => s.messages);
+  const isStreaming = useSessionStore((s) => s.isStreaming);
+  const sessionLoading = useSessionStore((s) => s.sessionLoading);
+  const extensionStatuses = useUIStore((s) => s.extensionStatuses);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const shouldAutoScrollRef = useRef(true);
+  const scrollFrameRef = useRef<number | null>(null);
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    shouldAutoScrollRef.current = distanceFromBottom < 120;
+  };
+
+  useEffect(() => {
+    if (!bottomRef.current || !shouldAutoScrollRef.current) return;
+    if (scrollFrameRef.current !== null) {
+      cancelAnimationFrame(scrollFrameRef.current);
+    }
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      scrollFrameRef.current = null;
+      bottomRef.current?.scrollIntoView({ behavior: isStreaming ? 'auto' : 'smooth' });
+    });
+
+    return () => {
+      if (scrollFrameRef.current !== null) {
+        cancelAnimationFrame(scrollFrameRef.current);
+        scrollFrameRef.current = null;
+      }
+    };
+  }, [messages, isStreaming]);
+
+  return (
+    <div className="h-full flex flex-col bg-white dark:bg-surface-dark relative">
+      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
+        {sessionLoading ? (
+          <div className="flex items-center justify-center h-full text-gray-400/70 dark:text-gray-500">
+            <div className="flex items-center gap-2 text-sm">
+              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              加载会话中...
+            </div>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-gray-400/70 dark:text-gray-500 text-sm">
+            <div className="text-center">
+              <IconPi className="w-16 h-16 text-blue-500/30 mb-3" />
+              <p className="text-gray-400/60 dark:text-gray-500/60">开始一段新的对话</p>
+            </div>
+          </div>
+        ) : (
+          <div className="mx-auto w-full max-w-4xl px-5 pt-6 pb-8 sm:px-7 lg:px-8">
+            {messages.map((msg) => (
+              <MessageBubble key={msg.id} message={msg} />
+            ))}
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* 输入区域 — 带渐变遮罩分隔 */}
+      <div className="relative flex-shrink-0">
+        <div className="absolute inset-x-0 -top-6 h-6 bg-gradient-to-t from-white to-transparent dark:from-surface-dark pointer-events-none" />
+        <div className="mx-auto w-full max-w-4xl px-5 sm:px-7 lg:px-8">
+          <MessageInput />
+        </div>
+      </div>
+
+      {/* 生成中的扩展状态 (TPS 等) */}
+      {isStreaming && Object.keys(extensionStatuses).length > 0 && (
+        <div className="mx-auto w-full max-w-4xl px-5 sm:px-7 lg:px-8">
+          <div className="py-1 text-xxs text-gray-400/60 dark:text-gray-500/60 flex items-center gap-3 flex-wrap min-h-[22px]">
+            {Object.entries(extensionStatuses).map(([key, text]) => (
+              <span key={key} className="opacity-60">
+                {text.replace(/\u001b\[[0-9;]*m/g, '')}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <StatusBar />
+    </div>
+  );
+}
