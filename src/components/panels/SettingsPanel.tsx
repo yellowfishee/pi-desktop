@@ -171,7 +171,31 @@ export default function SettingsPanel() {
               </Field>
 
               <Field label="字号">
-                <TextInput value={fontSize} onChange={setFontSize} placeholder="14px / medium / large" />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={10} max={28}
+                    value={parsePx(fontSize)}
+                    onChange={(e) => setFontSize(`${Math.max(10, Math.min(28, parseInt(e.target.value) || 14))}px`)}
+                    className="w-16 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-center focus:border-gray-400 focus:outline-none dark:border-gray-700 dark:bg-gray-900 [appearance:textfield]"
+                  />
+                  <span className="text-xs text-gray-400">px</span>
+                  <div className="flex gap-1 ml-2">
+                    {[12, 14, 16, 18, 20].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setFontSize(`${n}px`)}
+                        className={`px-2 py-1 rounded text-[10px] font-medium transition ${
+                          parsePx(fontSize) === n
+                            ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </Field>
             </Section>
           )}
@@ -208,6 +232,11 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <div>{children}</div>
     </label>
   );
+}
+
+function parsePx(size: string): number {
+  const n = parseFloat(size);
+  return isNaN(n) ? 14 : n;
 }
 
 function TextInput({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) {

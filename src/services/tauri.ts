@@ -84,7 +84,7 @@ export async function getAppConfig(): Promise<{
       properties_panel_open: false,
       theme: 'system',
       font_family: 'system',
-      font_size: 'medium',
+      font_size: '14px',
       last_session: null,
       pi_path: null,
     };
