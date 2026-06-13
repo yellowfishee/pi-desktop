@@ -14,6 +14,7 @@ export default function SettingsPanel() {
   const setTheme = useUIStore((s) => s.setTheme);
   const setFontFamily = useUIStore((s) => s.setFontFamily);
   const setFontSize = useUIStore((s) => s.setFontSize);
+  const saveConfig = useUIStore((s) => s.saveConfig);
 
   const model = useSessionStore((s) => s.model);
   const availableModels = useSessionStore((s) => s.availableModels);
@@ -25,8 +26,13 @@ export default function SettingsPanel() {
 
   // ESC 关闭
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') setOpen(false);
-  }, [setOpen]);
+    if (e.key === 'Escape') { setOpen(false); saveConfig(); }
+  }, [setOpen, saveConfig]);
+
+  const handleClose = useCallback(() => {
+    setOpen(false);
+    saveConfig();
+  }, [setOpen, saveConfig]);
 
   useEffect(() => {
     if (open) {
@@ -61,13 +67,13 @@ export default function SettingsPanel() {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-6 backdrop-blur-sm" onClick={() => setOpen(false)}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-6 backdrop-blur-sm" onClick={handleClose}>
       <div className="flex h-[min(680px,90vh)] w-[min(860px,92vw)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-950" onClick={(e) => e.stopPropagation()}>
         <div className="w-52 flex-shrink-0 border-r border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
           <div className="mb-4 flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">设置</div>
             <button
-              onClick={() => setOpen(false)}
+              onClick={handleClose}
               className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
               title="关闭设置"
             >

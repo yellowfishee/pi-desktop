@@ -60,6 +60,7 @@ interface UIStoreState {
   setFontFamily: (font: string) => void;
   setFontSize: (size: string) => void;
   setPiRunning: (running: boolean) => void;
+  saveConfig: () => void;
   setPiCheckResult: (available: boolean, bashAvailable: boolean, version?: string) => void;
   addToast: (toast: Omit<Toast, 'id'>) => void;
   dismissToast: (id: string) => void;
@@ -115,16 +116,16 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
   setTheme: (theme) => {
     set({ theme });
     applyTheme(theme);
-    saveAppConfig();
   },
   setFontFamily: (fontFamily) => {
     set({ fontFamily });
     applyFontFamily(fontFamily);
-    saveAppConfig();
   },
   setFontSize: (fontSize) => {
     set({ fontSize });
     applyFontSize(fontSize);
+  },
+  saveConfig: () => {
     saveAppConfig();
   },
   setPiRunning: (running) => set({ piRunning: running }),
