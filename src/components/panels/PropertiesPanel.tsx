@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useMessageStore } from '../../stores/messageStore';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -9,6 +9,9 @@ type ReviewFile = {
   path: string;
   action: string;
   status: 'changed' | 'created' | 'deleted';
+  preview: string;
+  additions: number;
+  deletions: number;
 };
 
 type CheckRun = {
@@ -68,8 +71,8 @@ export default function PropertiesPanel() {
       <PanelSection title="Changes">
         {review.files.length > 0 ? (
           <div className="space-y-1">
-            {review.files.map((file) => (
-              <FileRow key={file.id} file={file} />
+            {review.files.map((file, index) => (
+              <ChangeFileRow key={file.id} file={file} defaultExpanded={index === 0} />
             ))}
           </div>
         ) : (
@@ -135,14 +138,60 @@ function PanelSection({ title, children }: { title: string; children: ReactNode 
   );
 }
 
-function FileRow({ file }: { file: ReviewFile }) {
+function ChangeFileRow({ file, defaultExpanded = false }: { file: ReviewFile; defaultExpanded?: boolean }) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
   return (
-    <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-gray-700 hover:bg-gray-200/60 dark:text-gray-300 dark:hover:bg-gray-800/70">
-      <FileStatusIcon status={file.status} />
-      <div className="min-w-0 flex-1">
-        <div className="truncate font-mono text-[11px]">{file.path}</div>
-        <div className="text-[10px] text-gray-400">{file.action}</div>
-      </div>
+    <div className="overflow-hidden rounded-lg border border-gray-200/80 bg-white/70 dark:border-gray-800 dark:bg-gray-900/35">
+      <button
+        onClick={() => setExpanded((value) => !value)}
+        className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-gray-700 transition-colors hover:bg-gray-100/80 dark:text-gray-300 dark:hover:bg-gray-800/80"
+      >
+        <FileStatusIcon status={file.status} />
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-mono text-[11px]">{file.path}</div>
+          <div className="flex items-center gap-2 text-[10px] text-gray-400">
+            <span>{file.action}</span>
+            {(file.additions > 0 || file.deletions > 0) && (
+              <span className="font-mono">
+                <span className="text-green-600">+{file.additions}</span>
+                <span className="mx-1 text-gray-300">/</span>
+                <span className="text-red-500">-{file.deletions}</span>
+              </span>
+            )}
+          </div>
+        </div>
+        <DisclosureIcon expanded={expanded} />
+      </button>
+
+      {expanded && (
+        <div className="border-t border-gray-200/70 bg-[#fbfbfa] dark:border-gray-800 dark:bg-[#111111]">
+          {file.preview ? (
+            <DiffPreview text={file.preview} />
+          ) : (
+            <div className="px-3 py-2 text-[11px] text-gray-400">Preview unavailable</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DiffPreview({ text }: { text: string }) {
+  const lines = text.split('\n').slice(0, 80);
+  const truncated = text.split('\n').length > lines.length;
+
+  return (
+    <div className="max-h-72 overflow-auto py-1 font-mono text-[10px] leading-5">
+      {lines.map((line, index) => (
+        <div key={index} className={diffLineClass(line)}>
+          <span className="mr-2 inline-block w-4 select-none text-right text-gray-400/60">{index + 1}</span>
+          <span className="whitespace-pre-wrap break-all">{line || ' '}</span>
+        </div>
+      ))}
+      {truncated && (
+        <div className="px-3 py-1 text-[10px] text-gray-400">Preview truncated</div>
+      )}
     </div>
   );
 }
@@ -226,21 +275,31 @@ function getChangedFile(block: ContentBlock, command: string): ReviewFile | null
     stringArg(args, 'targetFile');
 
   if (path && isWriteTool(toolName)) {
+    const preview = getChangePreview(block, command);
+    const stats = diffStats(preview);
     return {
       id: block.toolCallId || `${toolName}-${path}`,
       path,
       action: toolName.includes('delete') ? 'deleted' : toolName.includes('write') ? 'created or updated' : 'modified',
       status: toolName.includes('delete') ? 'deleted' : toolName.includes('write') ? 'created' : 'changed',
+      preview,
+      additions: stats.additions,
+      deletions: stats.deletions,
     };
   }
 
   const commandPath = extractPathFromCommand(command);
   if (!commandPath) return null;
+  const preview = getChangePreview(block, command);
+  const stats = diffStats(preview);
   return {
     id: block.toolCallId || `cmd-${commandPath}`,
     path: commandPath,
     action: 'modified',
     status: 'changed',
+    preview,
+    additions: stats.additions,
+    deletions: stats.deletions,
   };
 }
 
@@ -281,6 +340,42 @@ function getToolOutput(block: ContentBlock): string {
   return result.content.map((part) => (part.type === 'text' ? part.text : `[${part.type}]`)).join('\n').slice(0, 500);
 }
 
+function getChangePreview(block: ContentBlock, command: string) {
+  const details = block.toolResult?.details as Record<string, unknown> | undefined;
+  const detailDiff =
+    stringArg(details, 'diff') ||
+    stringArg(details, 'patch') ||
+    stringArg(details, 'preview') ||
+    stringArg(details, 'output');
+  if (detailDiff) return detailDiff;
+
+  const output = getFullToolOutput(block);
+  if (looksLikeDiff(output)) return output;
+  if (command.includes('apply_patch')) return command.slice(0, 4000);
+  return output.slice(0, 1600);
+}
+
+function getFullToolOutput(block: ContentBlock): string {
+  const result = block.toolResult;
+  if (!result?.content) return '';
+  return result.content.map((part) => (part.type === 'text' ? part.text : `[${part.type}]`)).join('\n');
+}
+
+function looksLikeDiff(text: string) {
+  return /(^|\n)(diff --git|@@ |--- |\+\+\+ |\+[^+]|-[^-])/.test(text);
+}
+
+function diffStats(text: string) {
+  let additions = 0;
+  let deletions = 0;
+  for (const line of text.split('\n')) {
+    if (line.startsWith('+++') || line.startsWith('---')) continue;
+    if (line.startsWith('+')) additions += 1;
+    if (line.startsWith('-')) deletions += 1;
+  }
+  return { additions, deletions };
+}
+
 function stripAnsi(text: string) {
   return text.replace(/\u001b\[[0-9;]*m/g, '');
 }
@@ -302,6 +397,14 @@ function CloseIcon({ className = 'w-3 h-3' }: { className?: string }) {
   );
 }
 
+function DisclosureIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <svg className={`h-3 w-3 flex-shrink-0 text-gray-400 transition-transform ${expanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
 function FileStatusIcon({ status }: { status: ReviewFile['status'] }) {
   const marker = status === 'created' ? '+' : status === 'deleted' ? '-' : 'M';
   const color = status === 'created' ? 'text-green-600' : status === 'deleted' ? 'text-red-500' : 'text-yellow-600';
@@ -310,4 +413,17 @@ function FileStatusIcon({ status }: { status: ReviewFile['status'] }) {
       {marker}
     </span>
   );
+}
+
+function diffLineClass(line: string) {
+  if (line.startsWith('+++') || line.startsWith('---') || line.startsWith('diff --git') || line.startsWith('@@')) {
+    return 'px-2 text-blue-600 dark:text-blue-400';
+  }
+  if (line.startsWith('+')) {
+    return 'px-2 bg-green-50 text-green-800 dark:bg-green-950/30 dark:text-green-300';
+  }
+  if (line.startsWith('-')) {
+    return 'px-2 bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300';
+  }
+  return 'px-2 text-gray-600 dark:text-gray-400';
 }

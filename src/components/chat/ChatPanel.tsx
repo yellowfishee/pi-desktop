@@ -5,13 +5,19 @@ import { useUIStore } from '../../stores/uiStore';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
 import StatusBar from './StatusBar';
-import { IconPi } from '../shared/Icons';
+import { IconPi, IconSettings } from '../shared/Icons';
 
 export default function ChatPanel() {
   const messages = useMessageStore((s) => s.messages);
   const isStreaming = useSessionStore((s) => s.isStreaming);
   const sessionLoading = useSessionStore((s) => s.sessionLoading);
   const extensionStatuses = useUIStore((s) => s.extensionStatuses);
+  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  const toggleProperties = useUIStore((s) => s.toggleProperties);
+  const changesOpen = useUIStore((s) => s.changesOpen);
+  const setChangesOpen = useUIStore((s) => s.setChangesOpen);
+  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
@@ -44,6 +50,24 @@ export default function ChatPanel() {
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-surface-dark relative">
+      {/* 悬浮按钮 — 左侧 */}
+      <div className="absolute top-3 left-5 z-20 flex items-center gap-1">
+        <button onClick={toggleSidebar} className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-200/60 bg-white/80 text-gray-400 shadow-sm backdrop-blur transition-all duration-150 hover:border-gray-300 hover:bg-white hover:text-gray-700 hover:shadow-md dark:border-gray-700/60 dark:bg-gray-900/80 dark:text-gray-500 dark:hover:border-gray-600 dark:hover:bg-gray-900 dark:hover:text-gray-200" title={sidebarCollapsed ? '展开侧边栏' : '折叠侧边栏'}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sidebarCollapsed ? "M10 19l-7-7 7-7m8 14l-7-7 7-7" : "M14 5l7 7-7 7M5 5l7 7-7 7"} /></svg>
+        </button>
+      </div>
+      {/* 悬浮按钮 — 右侧 */}
+      <div className="absolute top-3 right-5 z-20 flex items-center gap-1">
+        <button onClick={() => setChangesOpen(!changesOpen)} className={`flex items-center justify-center w-8 h-8 rounded-full border shadow-sm backdrop-blur transition-all duration-150 hover:shadow-md ${changesOpen ? 'border-blue-300 bg-blue-50 text-blue-600 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'border-gray-200/60 bg-white/80 text-gray-400 hover:border-gray-300 hover:bg-white hover:text-gray-700 dark:border-gray-700/60 dark:bg-gray-900/80 dark:text-gray-500 dark:hover:border-gray-600 dark:hover:bg-gray-900 dark:hover:text-gray-200'}`} title="变更">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+        </button>
+        <button onClick={toggleProperties} className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-200/60 bg-white/80 text-gray-400 shadow-sm backdrop-blur transition-all duration-150 hover:border-gray-300 hover:bg-white hover:text-gray-700 hover:shadow-md dark:border-gray-700/60 dark:bg-gray-900/80 dark:text-gray-500 dark:hover:border-gray-600 dark:hover:bg-gray-900 dark:hover:text-gray-200" title="概览">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>
+        </button>
+        <button onClick={() => setSettingsOpen(true)} className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-200/60 bg-white/80 text-gray-400 shadow-sm backdrop-blur transition-all duration-150 hover:border-gray-300 hover:bg-white hover:text-gray-700 hover:shadow-md dark:border-gray-700/60 dark:bg-gray-900/80 dark:text-gray-500 dark:hover:border-gray-600 dark:hover:bg-gray-900 dark:hover:text-gray-200" title="设置">
+          <IconSettings className="w-4 h-4" />
+        </button>
+      </div>
       <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
         {sessionLoading ? (
           <div className="flex items-center justify-center h-full text-gray-400/70 dark:text-gray-500">

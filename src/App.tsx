@@ -15,7 +15,7 @@ function App() {
   const piAvailable = useUIStore((s) => s.piAvailable);
   const bashAvailable = useUIStore((s) => s.bashAvailable);
   const piCheckDone = useUIStore((s) => s.piCheckDone);
-  const activeDiff = useUIStore((s) => s.activeDiff);
+  const changesOpen = useUIStore((s) => s.changesOpen);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
   const propertiesOpen = useUIStore((s) => s.propertiesOpen);
@@ -151,7 +151,7 @@ function App() {
         )}
 
         {/* 变更面板 */}
-        {activeDiff && (
+        {changesOpen && (
           <div
             className="flex-shrink-0 overflow-hidden"
             style={{ width: Math.max(400, propertiesWidth) }}

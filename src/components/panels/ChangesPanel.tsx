@@ -1,28 +1,40 @@
+import { useState, useMemo } from 'react';
+import { useMessageStore } from '../../stores/messageStore';
 import { useUIStore } from '../../stores/uiStore';
+import type { ContentBlock } from '../../types/rpc';
 
-// Reuse GitDiff and computeUnifiedDiff from ToolCard
-// (would be better to extract to shared, but keeping it simple)
+// ============================================================
+// 主面板
+// ============================================================
 
 export default function ChangesPanel() {
-  const activeDiff = useUIStore((s) => s.activeDiff);
   const setActiveDiff = useUIStore((s) => s.setActiveDiff);
+  const messages = useMessageStore((s) => s.messages);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
 
-  if (!activeDiff) return null;
+  // 从消息中提取所有文件变更
+  const fileChanges = useMemo(() => extractFileChanges(messages), [messages]);
+
+  // 构建文件树
+  const tree = useMemo(() => buildFileTree(fileChanges), [fileChanges]);
+
+  const selectedChange = selectedPath ? fileChanges.find((c) => c.path === selectedPath) : null;
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-surface-dark border-l border-gray-200 dark:border-gray-700">
+      {/* 头部 */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-200 dark:border-gray-700">
-        <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">
-            {activeDiff.toolKind === 'edit' ? '文件变更' : '新建文件'}
-          </div>
-          <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate mt-0.5">
-            {activeDiff.filePath}
-          </div>
+        <div className="text-xs font-medium text-gray-900 dark:text-gray-100">
+          变更文件
+          {fileChanges.length > 0 && (
+            <span className="ml-1.5 text-[10px] text-gray-400 font-normal">
+              {fileChanges.length}
+            </span>
+          )}
         </div>
         <button
           onClick={() => setActiveDiff(null)}
-          className="ml-2 p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-800"
+          className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-800"
           title="关闭"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -31,22 +43,228 @@ export default function ChangesPanel() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-auto p-3">
-        {activeDiff.oldStr || activeDiff.newStr ? (
-          <GitDiffView
-            filePath={activeDiff.filePath}
-            oldStr={activeDiff.oldStr}
-            newStr={activeDiff.newStr}
-          />
-        ) : (
-          <div className="text-xs text-gray-400 dark:text-gray-500 p-4 text-center">
-            无法解析变更内容，请在消息中查看原始参数
+      {fileChanges.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center text-xs text-gray-400 dark:text-gray-500">
+          当前会话暂无文件变更
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* 文件树 */}
+          <div className={`overflow-y-auto ${selectedChange ? 'h-[40%] border-b border-gray-200 dark:border-gray-700' : 'flex-1'}`}>
+            <div className="py-1">
+              <FileTreeNode
+                node={tree}
+                depth={0}
+                selectedPath={selectedPath}
+                onSelect={setSelectedPath}
+              />
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* 选中文件的 diff */}
+          {selectedChange && (
+            <div className="flex-1 overflow-auto flex flex-col">
+              <div className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                <span className="font-mono text-[11px] text-gray-700 dark:text-gray-300 truncate">
+                  {selectedChange.path}
+                </span>
+                <button
+                  onClick={() => setSelectedPath(null)}
+                  className="p-0.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto p-3">
+                <GitDiffView
+                  filePath={selectedChange.path}
+                  oldStr={selectedChange.oldStr}
+                  newStr={selectedChange.newStr}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
+
+// ============================================================
+// 文件树
+// ============================================================
+
+interface TreeNode {
+  name: string;
+  path: string;
+  children: TreeNode[];
+  change?: FileChange;
+}
+
+interface FileChange {
+  path: string;
+  oldStr: string;
+  newStr: string;
+  isNew: boolean;
+  adds: number;
+  removes: number;
+}
+
+function buildFileTree(changes: FileChange[]): TreeNode {
+  const root: TreeNode = { name: '', path: '', children: [] };
+
+  for (const change of changes) {
+    const parts = change.path.replace(/\\/g, '/').split('/').filter(Boolean);
+    let current = root;
+
+    for (let i = 0; i < parts.length; i++) {
+      const name = parts[i];
+      const fullPath = parts.slice(0, i + 1).join('/');
+      const isLast = i === parts.length - 1;
+
+      let child = current.children.find((c) => c.name === name);
+      if (!child) {
+        child = {
+          name,
+          path: fullPath,
+          children: [],
+          change: isLast ? change : undefined,
+        };
+        current.children.push(child);
+      } else if (isLast) {
+        child.change = change;
+      }
+      current = child;
+    }
+  }
+
+  // 对子节点排序：文件夹在前，文件在后
+  sortTree(root);
+  return root;
+}
+
+function sortTree(node: TreeNode) {
+  node.children.sort((a, b) => {
+    const aIsDir = a.children.length > 0 || !a.change;
+    const bIsDir = b.children.length > 0 || !b.change;
+    if (aIsDir && !bIsDir) return -1;
+    if (!aIsDir && bIsDir) return 1;
+    return a.name.localeCompare(b.name);
+  });
+  for (const child of node.children) {
+    sortTree(child);
+  }
+}
+
+function FileTreeNode({
+  node,
+  depth,
+  selectedPath,
+  onSelect,
+}: {
+  node: TreeNode;
+  depth: number;
+  selectedPath: string | null;
+  onSelect: (path: string | null) => void;
+}) {
+  const isDir = node.children.length > 0 || !node.change;
+  const [expanded, setExpanded] = useState(depth < 2);
+
+  // 根节点不渲染
+  if (!node.name) {
+    return (
+      <>
+        {node.children.map((child) => (
+          <FileTreeNode
+            key={child.path}
+            node={child}
+            depth={0}
+            selectedPath={selectedPath}
+            onSelect={onSelect}
+          />
+        ))}
+      </>
+    );
+  }
+
+  const isSelected = selectedPath === node.path;
+  const change = node.change;
+
+  return (
+    <div>
+      <button
+        onClick={() => {
+          if (isDir) {
+            setExpanded(!expanded);
+          } else if (change) {
+            onSelect(isSelected ? null : node.path);
+          }
+        }}
+        className={`w-full flex items-center gap-1 px-2 py-1 text-left text-xs transition-colors ${
+          isSelected
+            ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+            : 'hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-700 dark:text-gray-300'
+        }`}
+        style={{ paddingLeft: `${8 + depth * 14}px` }}
+      >
+        {/* 展开/折叠箭头 */}
+        <span className="w-4 flex-shrink-0 flex items-center justify-center">
+          {isDir ? (
+            <svg
+              className={`w-3 h-3 text-gray-400 transition-transform ${expanded ? 'rotate-90' : ''}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          ) : (
+            <FileIcon className="w-3 h-3 text-gray-400" />
+          )}
+        </span>
+
+        {/* 文件名 */}
+        <span className={`truncate flex-1 ${isDir ? 'font-medium' : 'font-mono'}`}>
+          {node.name}
+        </span>
+
+        {/* 变更统计 */}
+        {change && (
+          <span className="flex-shrink-0 flex items-center gap-1 text-[10px] font-mono">
+            {change.adds > 0 && (
+              <span className="text-green-500">+{change.adds}</span>
+            )}
+            {change.removes > 0 && (
+              <span className="text-red-500">-{change.removes}</span>
+            )}
+            {change.isNew && change.adds === 0 && change.removes === 0 && (
+              <span className="text-green-500">new</span>
+            )}
+          </span>
+        )}
+      </button>
+
+      {/* 子节点 */}
+      {isDir && expanded && (
+        <div>
+          {node.children.map((child) => (
+            <FileTreeNode
+              key={child.path}
+              node={child}
+              depth={depth + 1}
+              selectedPath={selectedPath}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Diff 视图
+// ============================================================
 
 function GitDiffView({ filePath, oldStr, newStr }: { filePath: string; oldStr: string; newStr: string }) {
   const diffLines = computeDiff(oldStr, newStr);
@@ -55,7 +273,7 @@ function GitDiffView({ filePath, oldStr, newStr }: { filePath: string; oldStr: s
   return (
     <div className="overflow-hidden rounded-lg border border-gray-700/40 bg-[#0d1117]">
       <div className="flex items-center gap-2 border-b border-gray-700/40 bg-[#161b22] px-3 py-2">
-        <span className="font-mono text-[11px] text-gray-300 truncate">{filePath || '(无路径)'}</span>
+        <span className="font-mono text-[11px] text-gray-300 truncate">{filePath}</span>
         <span className="ml-auto text-[10px] text-gray-500">{diffLines.stats}</span>
       </div>
       <div className="px-3 py-1 font-mono text-[10px] text-blue-400/70 bg-[#0d1117]">
@@ -90,6 +308,93 @@ function GitDiffView({ filePath, oldStr, newStr }: { filePath: string; oldStr: s
       </div>
     </div>
   );
+}
+
+// ============================================================
+// 工具函数
+// ============================================================
+
+function extractFileChanges(messages: UIMessage[]): FileChange[] {
+  const changes: FileChange[] = [];
+
+  for (const msg of messages) {
+    if (msg.role !== 'assistant') continue;
+
+    for (const block of msg.content) {
+      if (block.type !== 'toolCall') continue;
+      if (block.toolStatus !== 'success') continue;
+
+      const rawBlock = block as ContentBlock & { toolName?: string; name?: string };
+      const toolName = (rawBlock.toolName || rawBlock.name || '').toLowerCase();
+
+      if (!toolName.includes('edit') && !toolName.includes('write')) continue;
+
+      const args = (block.arguments || {}) as Record<string, unknown>;
+      const path = getPath(args);
+      if (!path) continue;
+
+      const isEdit = toolName.includes('edit');
+      const oldStr = isEdit ? getOldString(args) : '';
+      const newStr = isEdit ? getNewString(args) : getWriteContent(args);
+
+      if (!oldStr && !newStr) continue;
+
+      const oldLines = oldStr.split('\n');
+      const newLines = newStr.split('\n');
+
+      // 合并同一文件的多次变更
+      const existing = changes.find((c) => c.path === path);
+      if (existing) {
+        existing.oldStr = existing.oldStr || oldStr;
+        existing.newStr = newStr || existing.newStr;
+        existing.adds += newLines.length || 0;
+        existing.removes += isEdit ? oldLines.length : 0;
+      } else {
+        changes.push({
+          path,
+          oldStr,
+          newStr,
+          isNew: !isEdit,
+          adds: newLines.length || 0,
+          removes: isEdit ? oldLines.length : 0,
+        });
+      }
+    }
+  }
+
+  return changes;
+}
+
+function getPath(args: Record<string, unknown>): string {
+  for (const key of ['filePath', 'file_path', 'path', 'file', 'target']) {
+    const v = args[key];
+    if (typeof v === 'string' && v.length > 0) return v;
+  }
+  return '';
+}
+
+function getOldString(args: Record<string, unknown>): string {
+  for (const key of ['oldString', 'old_string', 'old_str', 'oldText', 'old_text', 'old', 'search', 'pattern']) {
+    const v = args[key];
+    if (typeof v === 'string' && v.length > 0) return v;
+  }
+  return '';
+}
+
+function getNewString(args: Record<string, unknown>): string {
+  for (const key of ['newString', 'new_string', 'new_str', 'newText', 'new_text', 'new', 'replace', 'replacement']) {
+    const v = args[key];
+    if (typeof v === 'string' && v.length > 0) return v;
+  }
+  return '';
+}
+
+function getWriteContent(args: Record<string, unknown>): string {
+  for (const key of ['content', 'text', 'contents', 'fileText', 'file_text', 'data', 'body']) {
+    const v = args[key];
+    if (typeof v === 'string' && v.length > 0) return v;
+  }
+  return '';
 }
 
 function computeDiff(oldText: string, newText: string) {
@@ -141,4 +446,26 @@ function computeDiff(oldText: string, newText: string) {
     stats: `${removes > 0 ? `-${removes} ` : ''}${adds > 0 ? `+${adds}` : ''}`,
     hunkHeader: `-1,${oldCount} +1,${newCount}`,
   };
+}
+
+// ============================================================
+// 图标
+// ============================================================
+
+function FileIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14 2v6h6" />
+    </svg>
+  );
+}
+
+// ============================================================
+// 类型扩展
+// ============================================================
+
+interface UIMessage {
+  role: string;
+  content: ContentBlock[];
 }
