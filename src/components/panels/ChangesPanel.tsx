@@ -85,7 +85,7 @@ export default function ChangesPanel() {
       ) : !activeProjectDir ? (
         <PanelEmpty>选择项目后查看当前分支变更文件</PanelEmpty>
       ) : files.length === 0 ? (
-        <PanelEmpty>当前分支暂无 Git 变更</PanelEmpty>
+        <PanelEmpty>当前会话暂无文件变更</PanelEmpty>
       ) : (
         <div className="flex-1 flex flex-col min-h-0">
           <div className={`overflow-y-auto ${selectedChange ? 'h-[42%] border-b border-gray-200 dark:border-gray-700' : 'flex-1'}`}>
