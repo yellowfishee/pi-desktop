@@ -32,11 +32,17 @@ export default function ChangesPanel() {
       </div>
 
       <div className="flex-1 overflow-auto p-3">
-        <GitDiffView
-          filePath={activeDiff.filePath}
-          oldStr={activeDiff.oldStr}
-          newStr={activeDiff.newStr}
-        />
+        {activeDiff.oldStr || activeDiff.newStr ? (
+          <GitDiffView
+            filePath={activeDiff.filePath}
+            oldStr={activeDiff.oldStr}
+            newStr={activeDiff.newStr}
+          />
+        ) : (
+          <div className="text-xs text-gray-400 dark:text-gray-500 p-4 text-center">
+            无法解析变更内容，请在消息中查看原始参数
+          </div>
+        )}
       </div>
     </div>
   );
