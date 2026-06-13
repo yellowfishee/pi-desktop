@@ -23,7 +23,7 @@ function MarkdownContent({ text, isStreaming }: Props) {
       remarkPlugins={[remarkGfm]}
       components={{
         pre: ({ children }) => (
-          <pre className="bg-gray-900 dark:bg-gray-950 text-gray-100 rounded-lg p-3 overflow-x-auto my-2">
+          <pre className="bg-[#f6f8fa] dark:bg-[#161b22] text-gray-800 dark:text-gray-200 rounded-lg p-3 overflow-x-auto my-2 border border-gray-200/60 dark:border-gray-700/40">
             {children}
           </pre>
         ),
@@ -31,22 +31,21 @@ function MarkdownContent({ text, isStreaming }: Props) {
           const isInline = !className;
           if (isInline) {
             return (
-              <code className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-1 py-0.5 rounded text-xs" {...props}>
+              <code className="bg-gray-100 dark:bg-gray-800 text-rose-600 dark:text-rose-400 px-1 py-0.5 rounded text-xs font-medium" {...props}>
                 {children}
               </code>
             );
           }
-          // 提取语言标签
           const lang = className?.replace('language-', '') || '';
           return (
-            <div className="relative group">
+            <div className="relative group my-1">
               {lang && (
-                <div className="absolute top-2 left-3 text-xxs text-gray-400 uppercase">
+                <div className="absolute top-2 left-3 text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-medium">
                   {lang}
                 </div>
               )}
               <CopyButton text={String(children)} />
-              <code className={`${className || ''} block pt-6 text-xs`} {...props}>
+              <code className={`${className || ''} block pt-6 text-xs leading-relaxed`} {...props}>
                 {children}
               </code>
             </div>
