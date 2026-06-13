@@ -52,4 +52,10 @@ export default {
     },
   },
   plugins: [],
+  safelist: [
+    // 设计系统工具类 — 样式文件中 @apply 使用，确保 JIT 生成
+    { pattern: /^(bg|text|border)-app-(bg|sidebar|surface|raised)$/ },
+    { pattern: /^(bg|text|border)-fg(-muted|-subtle)?$/ },
+    { pattern: /^border-edge(-hover)?$/ },
+  ],
 };
