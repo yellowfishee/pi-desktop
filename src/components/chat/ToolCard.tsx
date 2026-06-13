@@ -114,18 +114,22 @@ function renderCallPreview(toolKind: string, args: ToolArgs, renderedArgs: strin
     return <TerminalBlock text={String(args.command || args.cmd || '')} prompt />;
   }
 
-  if (toolKind === 'edit' && typeof args.oldString === 'string' && typeof args.newString === 'string') {
-    return (
-      <GitDiff
-        filePath={getPath(args)}
-        oldStr={args.oldString}
-        newStr={args.newString}
-      />
-    );
+  if (toolKind === 'edit') {
+    const oldStr = getOldString(args);
+    const newStr = getNewString(args);
+    if (oldStr !== undefined && newStr !== undefined) {
+      return (
+        <GitDiff
+          filePath={getPath(args)}
+          oldStr={oldStr}
+          newStr={newStr}
+        />
+      );
+    }
   }
 
   if (toolKind === 'write') {
-    const content = String(args.content || args.text || '');
+    const content = getWriteContent(args);
     if (content) {
       return (
         <GitDiff
@@ -407,7 +411,31 @@ function getToolSummary(toolKind: string, args: ToolArgs): string {
 }
 
 function getPath(args: ToolArgs): string {
-  return String(args.path || args.file || args.filePath || args.target || '');
+  return String(args.path || args.file || args.filePath || args.file_path || args.target || '');
+}
+
+function getOldString(args: ToolArgs): string | undefined {
+  for (const key of ['oldString', 'old_str', 'oldText', 'old_text', 'old']) {
+    const v = args[key];
+    if (typeof v === 'string') return v;
+  }
+  return undefined;
+}
+
+function getNewString(args: ToolArgs): string | undefined {
+  for (const key of ['newString', 'new_str', 'newText', 'new_text', 'new']) {
+    const v = args[key];
+    if (typeof v === 'string') return v;
+  }
+  return undefined;
+}
+
+function getWriteContent(args: ToolArgs): string | undefined {
+  for (const key of ['content', 'text', 'contents', 'fileText', 'file_text', 'data']) {
+    const v = args[key];
+    if (typeof v === 'string' && v.length > 0) return v;
+  }
+  return undefined;
 }
 
 function getResultText(result?: ToolResultMessage): string {
