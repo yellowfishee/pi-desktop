@@ -1,4 +1,5 @@
 import { memo, useMemo, useState } from 'react';
+import { useUIStore } from '../../stores/uiStore';
 import type { ContentBlock, ToolResultMessage } from '../../types/rpc';
 import { IconCheck, IconX, IconLoader, IconChevronRight, IconClock, IconTerminal, IconEdit } from '../shared/Icons';
 
@@ -92,10 +93,7 @@ function ToolCard({ block }: Props) {
             </div>
           )}
           {(toolKind === 'edit' || toolKind === 'write') && (
-            <DiffAction
-              toolKind={toolKind}
-              args={args}
-            />
+            <DiffViewLink toolKind={toolKind} args={args} />
           )}
         </div>
       )}
@@ -249,170 +247,36 @@ function FileHeader({ path, action }: { path: string; action: string }) {
   );
 }
 
-function DiffAction({ toolKind, args }: { toolKind: string; args: ToolArgs }) {
-  const [showDiff, setShowDiff] = useState(false);
+function DiffViewLink({ toolKind, args }: { toolKind: string; args: ToolArgs }) {
+  const setActiveDiff = useUIStore((s) => s.setActiveDiff);
+  const activeDiff = useUIStore((s) => s.activeDiff);
   const path = getPath(args);
 
-  const oldStr = toolKind === 'edit' ? getOldString(args) : '';
-  const newStr = toolKind === 'edit' ? getNewString(args) : getWriteContent(args);
-  const hasContent = oldStr !== undefined || (toolKind === 'write' && newStr);
+  const oldStr = toolKind === 'edit' ? (getOldString(args) || '') : '';
+  const newStr = toolKind === 'edit' ? (getNewString(args) || '') : (getWriteContent(args) || '');
 
-  if (!hasContent && toolKind !== 'edit') return null;
-  if (oldStr === undefined && newStr === undefined) return null;
+  if (!newStr && !oldStr) return null;
+
+  const isActive = activeDiff?.filePath === path && activeDiff?.toolKind === toolKind;
 
   return (
     <div className="mt-2">
-      {!showDiff ? (
-        <button
-          onClick={() => setShowDiff(true)}
-          className="flex items-center gap-1.5 text-[10px] text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-        >
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-          </svg>
-          查看变更
-        </button>
-      ) : (
-        <div>
-          <button
-            onClick={() => setShowDiff(false)}
-            className="mb-1.5 text-[10px] text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
-          >
-            收起变更
-          </button>
-          <GitDiff
-            filePath={path}
-            oldStr={oldStr || ''}
-            newStr={newStr || ''}
-          />
-        </div>
-      )}
+      <button
+        onClick={() => setActiveDiff(isActive ? null : { filePath: path, oldStr, newStr, toolKind: toolKind as 'edit' | 'write' })}
+        className={`flex items-center gap-1.5 text-[10px] transition-colors ${
+          isActive
+            ? 'text-blue-600 dark:text-blue-400'
+            : 'text-gray-400 hover:text-blue-500 dark:text-gray-500 dark:hover:text-blue-400'
+        }`}
+      >
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        </svg>
+        {isActive ? '已选中' : '查看变更'}
+      </button>
     </div>
   );
-}
-
-function GitDiff({ filePath, oldStr, newStr }: { filePath: string; oldStr: string; newStr: string }) {
-  const diffLines = useMemo(() => computeUnifiedDiff(oldStr, newStr), [oldStr, newStr]);
-  const isNewFile = oldStr === '';
-
-  return (
-    <div className="overflow-hidden rounded-lg border border-gray-700/40 bg-[#0d1117]">
-      {/* diff header */}
-      <div className="flex items-center gap-2 border-b border-gray-700/40 bg-[#161b22] px-3 py-2">
-        <span className="font-mono text-[11px] text-gray-300 truncate">{filePath || '(无路径)'}</span>
-        <span className="ml-auto flex items-center gap-1.5 text-[10px]">
-          <span className="text-gray-500">{diffLines.stats}</span>
-        </span>
-      </div>
-
-      {/* diff hunk header */}
-      <div className="px-3 py-1 font-mono text-[10px] text-blue-400/70 bg-[#0d1117]">
-        {isNewFile
-          ? `@@ -0,0 +1,${newStr.split('\n').length || 1} @@`
-          : `@@ ${diffLines.hunkHeader || ''} @@`}
-      </div>
-
-      {/* diff content */}
-      <div className="font-mono text-xs leading-relaxed overflow-x-auto">
-        {diffLines.lines.map((line, i) => (
-          <DiffLine key={i} line={line} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function DiffLine({ line }: { line: { text: string; type: 'add' | 'remove' | 'context' } }) {
-  const bgClass =
-    line.type === 'add'
-      ? 'bg-green-900/20 border-l-2 border-green-500/50'
-      : line.type === 'remove'
-        ? 'bg-red-900/20 border-l-2 border-red-500/50'
-        : 'border-l-2 border-transparent';
-
-  const textClass =
-    line.type === 'add'
-      ? 'text-green-300'
-      : line.type === 'remove'
-        ? 'text-red-300'
-        : 'text-gray-300';
-
-  const prefix = line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' ';
-
-  return (
-    <div className={`flex ${bgClass}`}>
-      <span className={`w-5 flex-shrink-0 text-right pr-3 select-none text-gray-500 text-[10px]`}>
-        {prefix}
-      </span>
-      <span className={`whitespace-pre-wrap break-all ${textClass}`}>
-        {line.text}
-      </span>
-    </div>
-  );
-}
-
-function computeUnifiedDiff(oldText: string, newText: string): {
-  lines: { text: string; type: 'add' | 'remove' | 'context' }[];
-  stats: string;
-  hunkHeader: string;
-} {
-  const oldLines = oldText.split('\n');
-  const newLines = newText.split('\n');
-
-  // Simple line-by-line diff using LCS
-  const m = oldLines.length;
-  const n = newLines.length;
-
-  // Build LCS table
-  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (oldLines[i - 1] === newLines[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1] + 1;
-      } else {
-        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
-      }
-    }
-  }
-
-  // Backtrack to produce diff
-  const result: { text: string; type: 'add' | 'remove' | 'context' }[] = [];
-  let adds = 0;
-  let removes = 0;
-  let oldStart = 1;
-  let newStart = 1;
-  let oldCount = 0;
-  let newCount = 0;
-
-  const backtrack = (i: number, j: number) => {
-    if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
-      backtrack(i - 1, j - 1);
-      result.push({ text: oldLines[i - 1], type: 'context' });
-      oldCount++;
-      newCount++;
-    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      backtrack(i, j - 1);
-      result.push({ text: newLines[j - 1], type: 'add' });
-      adds++;
-      newCount++;
-    } else if (i > 0 && (j === 0 || dp[i][j - 1] < dp[i - 1][j])) {
-      backtrack(i - 1, j);
-      result.push({ text: oldLines[i - 1], type: 'remove' });
-      removes++;
-      oldCount++;
-    }
-  };
-
-  backtrack(m, n);
-
-  const stats = `${removes > 0 ? `-${removes} ` : ''}${adds > 0 ? `+${adds}` : ''}`;
-
-  return {
-    lines: result,
-    stats,
-    hunkHeader: `-${oldStart},${oldCount} +${newStart},${newCount}`,
-  };
 }
 
 function getToolSummary(toolKind: string, args: ToolArgs): string {

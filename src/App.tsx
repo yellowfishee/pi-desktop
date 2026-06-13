@@ -5,6 +5,7 @@ import TitleBar from './components/layout/TitleBar';
 import Sidebar from './components/layout/Sidebar';
 import ChatPanel from './components/chat/ChatPanel';
 import PropertiesPanel from './components/panels/PropertiesPanel';
+import ChangesPanel from './components/panels/ChangesPanel';
 import SettingsPanel from './components/panels/SettingsPanel';
 import NotificationStack from './components/shared/NotificationStack';
 import WelcomeScreen from './components/screens/WelcomeScreen';
@@ -14,6 +15,7 @@ function App() {
   const piAvailable = useUIStore((s) => s.piAvailable);
   const bashAvailable = useUIStore((s) => s.bashAvailable);
   const piCheckDone = useUIStore((s) => s.piCheckDone);
+  const activeDiff = useUIStore((s) => s.activeDiff);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
   const propertiesOpen = useUIStore((s) => s.propertiesOpen);
@@ -146,6 +148,16 @@ function App() {
             <PropertiesPanel />
           </div>
           </>
+        )}
+
+        {/* 变更面板 */}
+        {activeDiff && (
+          <div
+            className="flex-shrink-0 overflow-hidden"
+            style={{ width: Math.max(400, propertiesWidth) }}
+          >
+            <ChangesPanel />
+          </div>
         )}
       </div>
 
