@@ -316,59 +316,62 @@ function GitDiffView({ filePath, oldStr, newStr }: { filePath: string; oldStr: s
 
 function extractFileChanges(messages: UIMessage[]): FileChange[] {
   const changes: FileChange[] = [];
-  const toolCalls: unknown[] = [];
+
+  console.log('[ChangesPanel] total messages:', messages.length);
 
   for (const msg of messages) {
+    console.log('[ChangesPanel] msg role:', msg.role, 'content blocks:', msg.content?.length);
     if (msg.role !== 'assistant') continue;
 
     for (const block of msg.content) {
+      console.log('[ChangesPanel] block type:', block.type, 'keys:', Object.keys(block).filter(k => k !== 'content' && k !== 'text'));
       if (block.type !== 'toolCall') continue;
 
-      toolCalls.push({ toolName: (block as any).toolName, toolStatus: block.toolStatus, argKeys: block.arguments ? Object.keys(block.arguments) : [] });
+      if (block.toolStatus && block.toolStatus !== 'success') {
+        console.log('[ChangesPanel] skipping block with status:', block.toolStatus);
+        continue;
+      }
 
-      // 持久化的消息可能没有 toolStatus，视为成功
-      if (block.toolStatus && block.toolStatus !== 'success') continue;
-
-      const rawBlock = block as ContentBlock & { toolName?: string; name?: string; functionName?: string };
-      const toolName = (rawBlock.toolName || rawBlock.name || rawBlock.functionName || '').toLowerCase();
+      const b = block as any;
+      const toolName = (b.toolName || b.name || b.functionName || '').toLowerCase();
+      console.log('[ChangesPanel] toolName:', toolName, 'args keys:', b.arguments ? Object.keys(b.arguments) : 'NO ARGS');
 
       if (!toolName.includes('edit') && !toolName.includes('write')) continue;
 
       const args = (block.arguments || {}) as Record<string, unknown>;
       const path = getPath(args);
+      console.log('[ChangesPanel] path:', path);
       if (!path) continue;
 
       const isEdit = toolName.includes('edit');
       const oldStr = isEdit ? getOldString(args) : '';
       const newStr = isEdit ? getNewString(args) : getWriteContent(args);
-
+      console.log('[ChangesPanel] oldStr len:', oldStr.length, 'newStr len:', newStr.length);
       if (!oldStr && !newStr) continue;
 
-      const oldLines = oldStr.split('\n');
-      const newLines = newStr.split('\n');
+      const oldLen = oldStr.split('\n').length;
+      const newLen = newStr.split('\n').length;
 
-      // 合并同一文件的多次变更
       const existing = changes.find((c) => c.path === path);
       if (existing) {
         existing.oldStr = existing.oldStr || oldStr;
         existing.newStr = newStr || existing.newStr;
-        existing.adds += newLines.length || 0;
-        existing.removes += isEdit ? oldLines.length : 0;
+        existing.adds += newLen;
+        existing.removes += isEdit ? oldLen : 0;
       } else {
         changes.push({
           path,
           oldStr,
           newStr,
           isNew: !isEdit,
-          adds: newLines.length || 0,
-          removes: isEdit ? oldLines.length : 0,
+          adds: newLen,
+          removes: isEdit ? oldLen : 0,
         });
       }
     }
   }
 
-  console.log('[ChangesPanel] tool calls found:', toolCalls);
-  console.log('[ChangesPanel] file changes:', changes);
+  console.log('[ChangesPanel] final changes:', changes.length, changes.map(c => c.path));
   return changes;
 }
 
