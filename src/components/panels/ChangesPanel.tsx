@@ -316,16 +316,21 @@ function GitDiffView({ filePath, oldStr, newStr }: { filePath: string; oldStr: s
 
 function extractFileChanges(messages: UIMessage[]): FileChange[] {
   const changes: FileChange[] = [];
+  const toolCalls: unknown[] = [];
 
   for (const msg of messages) {
     if (msg.role !== 'assistant') continue;
 
     for (const block of msg.content) {
       if (block.type !== 'toolCall') continue;
-      if (block.toolStatus !== 'success') continue;
 
-      const rawBlock = block as ContentBlock & { toolName?: string; name?: string };
-      const toolName = (rawBlock.toolName || rawBlock.name || '').toLowerCase();
+      toolCalls.push({ toolName: (block as any).toolName, toolStatus: block.toolStatus, argKeys: block.arguments ? Object.keys(block.arguments) : [] });
+
+      // 持久化的消息可能没有 toolStatus，视为成功
+      if (block.toolStatus && block.toolStatus !== 'success') continue;
+
+      const rawBlock = block as ContentBlock & { toolName?: string; name?: string; functionName?: string };
+      const toolName = (rawBlock.toolName || rawBlock.name || rawBlock.functionName || '').toLowerCase();
 
       if (!toolName.includes('edit') && !toolName.includes('write')) continue;
 
@@ -362,6 +367,8 @@ function extractFileChanges(messages: UIMessage[]): FileChange[] {
     }
   }
 
+  console.log('[ChangesPanel] tool calls found:', toolCalls);
+  console.log('[ChangesPanel] file changes:', changes);
   return changes;
 }
 
