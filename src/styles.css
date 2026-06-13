@@ -70,12 +70,14 @@ html, body, #root {
 @layer components {
   /* 圆角卡片 */
   .card {
-    @apply rounded border border-edge bg-app-surface shadow-sm;
+    border: 1px solid var(--border-color);
+    @apply rounded bg-app-surface shadow-sm;
   }
 
   /* 轻微卡片 */
   .card-soft {
-    @apply rounded border border-edge bg-app-raised;
+    border: 1px solid var(--border-color);
+    @apply rounded bg-app-raised;
   }
 
   /* 按钮: 幽灵风格 */
@@ -86,11 +88,14 @@ html, body, #root {
 
   /* 按钮: 图标圆形 */
   .btn-icon {
+    border: 1px solid var(--border-color);
     @apply flex items-center justify-center w-8 h-8 rounded-full
-           border border-edge bg-white/80 text-fg-muted shadow-sm
-           backdrop-blur transition hover:border-edge-hover hover:text-fg
-           hover:shadow-md hover:bg-white
+           bg-white/80 text-fg-muted shadow-sm backdrop-blur transition
+           hover:text-fg hover:shadow-md hover:bg-white
            dark:bg-gray-900/80 dark:hover:bg-gray-900;
+  }
+  .btn-icon:hover {
+    border-color: var(--border-hover);
   }
 
   /* 按钮: 活跃态图标 */
@@ -109,9 +114,10 @@ html, body, #root {
 
   /* 输入框 */
   .input {
-    @apply w-full h-8 rounded-lg border border-edge
-           bg-white/60 text-xs text-fg placeholder:text-fg-subtle
-           outline-none transition focus:border-gray-300 focus:bg-white
+    border: 1px solid var(--border-color);
+    @apply w-full h-8 rounded-lg bg-white/60 text-xs text-fg
+           placeholder:text-fg-subtle outline-none transition
+           focus:border-gray-300 focus:bg-white
            dark:bg-gray-900/60 dark:focus:border-gray-600 dark:focus:bg-gray-900;
   }
 
@@ -127,7 +133,7 @@ html, body, #root {
 
   /* 分割线 */
   .divider {
-    @apply border-t border-edge;
+    border-top: 1px solid var(--border-color);
   }
 
   /* 行: hover 高亮 */
@@ -151,8 +157,9 @@ html, body, #root {
   }
 
   .resize-handle-line {
+    background: var(--border-color);
     @apply absolute inset-y-0 left-1/2 w-px -translate-x-1/2
-           bg-edge transition-colors group-hover:bg-gray-400
+           transition-colors group-hover:bg-gray-400
            dark:group-hover:bg-gray-500;
   }
 
@@ -164,8 +171,8 @@ html, body, #root {
 
   /* 成功徽章 */
   .badge-success {
-    @apply rounded border border-green-200/60 bg-green-50/50
-           px-3 py-2 text-xs text-green-700
+    border: 1px solid rgb(187 247 208 / 0.6);
+    @apply rounded bg-green-50/50 px-3 py-2 text-xs text-green-700
            dark:border-green-900/50 dark:bg-green-950/10 dark:text-green-300;
   }
 }
