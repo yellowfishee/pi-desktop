@@ -17,6 +17,7 @@ export default function ChatInfoBar() {
   const activeProjectDir = useSessionStore((s) => s.activeProjectDir);
   const refreshStats = useSessionStore((s) => s.refreshStats);
   const [changedFiles, setChangedFiles] = useState(0);
+  const [gitBranch, setGitBranch] = useState('');
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [thinkingMenuOpen, setThinkingMenuOpen] = useState(false);
   const modelBtnRef = useRef<HTMLButtonElement>(null);
@@ -49,9 +50,13 @@ export default function ChatInfoBar() {
       try {
         const changes = await listGitChanges(activeProjectDir);
         setChangedFiles(changes.files?.length || 0);
+        setGitBranch(changes.branch || '');
       } catch { /* ignore */ }
     }, 15000);
-    listGitChanges(activeProjectDir).then((c) => setChangedFiles(c.files?.length || 0)).catch(() => {});
+    listGitChanges(activeProjectDir).then((c) => {
+      setChangedFiles(c.files?.length || 0);
+      setGitBranch(c.branch || '');
+    }).catch(() => {});
     return () => clearInterval(interval);
   }, [activeProjectDir]);
 
@@ -231,12 +236,18 @@ export default function ChatInfoBar() {
           {messageCount || 0} 条消息
         </span>
 
-        {/* Git 变更提示 */}
-        {changedFiles > 0 && (
+        {/* Git 分支 */}
+        {gitBranch && (
           <>
             <span className="opacity-30">|</span>
-            <span className="whitespace-nowrap text-yellow-500">
-              {changedFiles} 个文件变更
+            <span className="flex items-center gap-1 whitespace-nowrap">
+              <svg className="h-2.5 w-2.5 text-[var(--fg-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              <span className="text-[var(--fg-muted)]">{gitBranch}</span>
+              {changedFiles > 0 && (
+                <span className="text-yellow-500">+{changedFiles}</span>
+              )}
             </span>
           </>
         )}
