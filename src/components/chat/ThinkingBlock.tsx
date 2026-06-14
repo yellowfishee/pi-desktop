@@ -1,5 +1,4 @@
-import { memo, useMemo, useState } from 'react';
-import { IconChevronRight, IconBrain } from '../shared/Icons';
+import { memo, useState } from 'react';
 
 interface Props {
   thinking: string;
@@ -7,48 +6,34 @@ interface Props {
 }
 
 function ThinkingBlock({ thinking, isStreaming }: Props) {
-  const [expanded, setExpanded] = useState(isStreaming);
-  const characterCount = thinking.length;
-  const preview = useMemo(() => {
-    const compact = thinking.replace(/\s+/g, ' ').trim();
-    if (!compact) return isStreaming ? '正在组织思路...' : '没有思考内容';
-    return compact.length > 90 ? `${compact.slice(0, 90)}...` : compact;
-  }, [thinking, isStreaming]);
+  const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className={`thinking-card ${isStreaming ? 'thinking-card-streaming' : ''}`}>
+    <div className="mb-1">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="thinking-card-header"
+        className="flex items-center gap-1.5 text-[11px] text-[var(--fg-subtle)] hover:text-[var(--fg-muted)] transition-colors group"
       >
-        <span className={`thinking-chevron ${expanded ? 'rotate-90' : ''}`}>
-          <IconChevronRight className="w-2.5 h-2.5" />
+        <svg
+          className={`h-2.5 w-2.5 flex-shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+        </svg>
+        <span className={isStreaming ? 'italic' : ''}>
+          {isStreaming ? '思考中...' : '思考过程'}
         </span>
-        <span className="thinking-icon">
-          <IconBrain className="w-3 h-3" />
-        </span>
-        <span className="thinking-title">{isStreaming ? '正在思考' : '思考过程'}</span>
         {isStreaming && (
-          <span className="thinking-dots" aria-hidden="true">
-            <span />
-            <span />
-            <span />
+          <span className="flex gap-0.5 ml-0.5">
+            <span className="h-1 w-1 rounded-full bg-current animate-pulse" />
+            <span className="h-1 w-1 rounded-full bg-current animate-pulse [animation-delay:120ms]" />
+            <span className="h-1 w-1 rounded-full bg-current animate-pulse [animation-delay:240ms]" />
           </span>
         )}
-        <span className="thinking-count">{characterCount.toLocaleString()} 字符</span>
       </button>
-
-      {!expanded && (
-        <div className="thinking-preview">
-          {preview}
-        </div>
-      )}
-
       {expanded && (
-        <div className="thinking-content">
-          <p>
-            {thinking}
-          </p>
+        <div className="mt-1 ml-4 pl-3 border-l-2 border-[var(--border-color)] text-[11px] text-[var(--fg-subtle)] leading-relaxed whitespace-pre-wrap">
+          {thinking}
         </div>
       )}
     </div>
