@@ -532,6 +532,11 @@ export interface ExportHtmlCommand {
   outputPath?: string;
 }
 
+export interface SearchSessionsCommand {
+  type: "search_sessions";
+  query: string;
+}
+
 export interface BashCommand {
   type: "bash";
   command: string;
@@ -578,6 +583,7 @@ export type RpcCommand =
   | CloneCommand
   | GetForkMessagesCommand
   | ExportHtmlCommand
+  | SearchSessionsCommand
   | BashCommand
   | AbortBashCommand
   | SetSteeringModeCommand
