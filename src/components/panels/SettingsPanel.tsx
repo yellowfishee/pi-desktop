@@ -342,11 +342,14 @@ export default function SettingsPanel() {
           )}
 
           {activeTab === 'shortcuts' && (
-            <Section title="快捷键" description="输入框的键盘行为">
+            <Section title="快捷键" description="全局键盘快捷键（输入框聚焦时无效）">
               <div className="grid max-w-md gap-2 text-xs">
                 <Shortcut keys="Enter" label="发送消息" />
                 <Shortcut keys="Shift + Enter" label="插入换行" />
                 <Shortcut keys="Escape" label="中止当前生成" />
+                <Shortcut keys="⌘/Ctrl + Shift + M" label="循环切换模型" />
+                <Shortcut keys="⌘/Ctrl + Shift + T" label="循环切换思考深度" />
+                <Shortcut keys="⌘/Ctrl + K" label="打开设置面板" />
               </div>
             </Section>
           )}
