@@ -299,7 +299,7 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 
 /* 代码块容器悬停时高亮边框 */
-.code-block-container:hover > pre {
+.code-block-wrapper:hover {
   border-color: var(--border-hover);
 }
 
@@ -307,6 +307,69 @@ button { -webkit-tap-highlight-color: transparent; }
 .markdown-body pre code.hljs {
   background: transparent !important;
   padding: 0;
+}
+
+/* ── hljs 暗色主题覆盖 ── */
+.dark .hljs { color: #c9d1d9; background: transparent; }
+.dark .hljs-keyword { color: #ff7b72; }
+.dark .hljs-string  { color: #a5d6ff; }
+.dark .hljs-number  { color: #79c0ff; }
+.dark .hljs-comment { color: #8b949e; font-style: italic; }
+.dark .hljs-function,
+.dark .hljs-title.function_ { color: #d2a8ff; }
+.dark .hljs-title.class_ { color: #ffa657; }
+.dark .hljs-type    { color: #ffa657; }
+.dark .hljs-literal { color: #79c0ff; }
+.dark .hljs-built_in { color: #ffa657; }
+.dark .hljs-meta    { color: #8b949e; }
+.dark .hljs-attr    { color: #79c0ff; }
+.dark .hljs-params  { color: #c9d1d9; }
+.dark .hljs-property { color: #79c0ff; }
+.dark .hljs-punctuation { color: #c9d1d9; }
+.dark .hljs-tag     { color: #7ee787; }
+.dark .hljs-name    { color: #7ee787; }
+.dark .hljs-selector-class { color: #d2a8ff; }
+.dark .hljs-variable.language_ { color: #ff7b72; }
+.dark .hljs-operator { color: #ff7b72; }
+.dark .hljs-regexp  { color: #a5d6ff; }
+
+/* ── Diff 高亮 ── */
+.hljs-addition { color: #116329; background: #dafbe1; }
+.hljs-deletion { color: #82071e; background: #ffdcd7; }
+.dark .hljs-addition { color: #7ee787; background: rgba(46,160,67,0.15); }
+.dark .hljs-deletion { color: #ff7b72; background: rgba(248,81,73,0.15); }
+
+/* ── 行号容器 ── */
+.code-block-wrapper {
+  display: flex;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-color);
+}
+.code-line-numbers {
+  flex-shrink: 0;
+  padding: 0.75rem 0;
+  background: var(--raised-bg);
+  border-right: 1px solid var(--border-color);
+  user-select: none;
+  text-align: right;
+  overflow: hidden;
+}
+.code-line-numbers > span {
+  display: block;
+  padding: 0 0.75rem 0 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1.625;
+  color: var(--fg-subtle);
+  opacity: 0.5;
+}
+.code-block-wrapper > pre {
+  flex: 1;
+  min-width: 0;
+  border: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
 }
 
 /* ============================================================
@@ -946,7 +1009,6 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 
 .markdown-body pre,
-.code-block-container > pre,
 pre {
   border-radius: 0.5rem;
 }
