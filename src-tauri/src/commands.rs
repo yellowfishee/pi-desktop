@@ -237,6 +237,102 @@ pub async fn rename_session_file(
 }
 
 // ============================================================
+// Git 操作命令
+// ============================================================
+
+#[tauri::command]
+pub async fn stage_files(dir_name: String, files: Vec<String>) -> Result<Value, String> {
+    let project_path = decode_project_path(&dir_name);
+    let project_dir = Path::new(&project_path);
+    if !project_dir.exists() {
+        return Err(format!("项目目录不存在: {}", project_path));
+    }
+
+    let mut args: Vec<&str> = vec!["add", "--"];
+    let file_refs: Vec<&str> = files.iter().map(|s| s.as_str()).collect();
+    args.extend(&file_refs);
+
+    run_git(project_dir, &args)?;
+    Ok(serde_json::json!({"success": true}))
+}
+
+#[tauri::command]
+pub async fn unstage_files(dir_name: String, files: Vec<String>) -> Result<Value, String> {
+    let project_path = decode_project_path(&dir_name);
+    let project_dir = Path::new(&project_path);
+    if !project_dir.exists() {
+        return Err(format!("项目目录不存在: {}", project_path));
+    }
+
+    let mut args: Vec<&str> = vec!["reset", "HEAD", "--"];
+    let file_refs: Vec<&str> = files.iter().map(|s| s.as_str()).collect();
+    args.extend(&file_refs);
+
+    run_git(project_dir, &args)?;
+    Ok(serde_json::json!({"success": true}))
+}
+
+#[tauri::command]
+pub async fn discard_changes(dir_name: String, files: Vec<String>, staged: bool) -> Result<Value, String> {
+    let project_path = decode_project_path(&dir_name);
+    let project_dir = Path::new(&project_path);
+    if !project_dir.exists() {
+        return Err(format!("项目目录不存在: {}", project_path));
+    }
+
+    if staged {
+        // 先 unstage，再恢复文件到 HEAD
+        let mut reset_args: Vec<&str> = vec!["reset", "HEAD", "--"];
+        let file_refs: Vec<&str> = files.iter().map(|s| s.as_str()).collect();
+        reset_args.extend(&file_refs);
+        run_git(project_dir, &reset_args)?;
+    }
+
+    let mut checkout_args: Vec<&str> = vec!["checkout", "--"];
+    let file_refs: Vec<&str> = files.iter().map(|s| s.as_str()).collect();
+    checkout_args.extend(&file_refs);
+
+    run_git(project_dir, &checkout_args)?;
+    Ok(serde_json::json!({"success": true}))
+}
+
+#[tauri::command]
+pub async fn git_commit(
+    dir_name: String,
+    message: String,
+    files: Option<Vec<String>>,
+) -> Result<Value, String> {
+    let project_path = decode_project_path(&dir_name);
+    let project_dir = Path::new(&project_path);
+    if !project_dir.exists() {
+        return Err(format!("项目目录不存在: {}", project_path));
+    }
+
+    if message.trim().is_empty() {
+        return Err("提交信息不能为空".to_string());
+    }
+
+    let mut args: Vec<&str> = vec!["commit", "-m", message.trim()];
+    let file_strs: Vec<String>;
+    if let Some(ref file_list) = files {
+        args.push("--");
+        file_strs = file_list.clone();
+        for f in &file_strs {
+            args.push(f.as_str());
+        }
+    }
+
+    run_git(project_dir, &args)?;
+
+    // 获取最新 commit hash
+    let hash = run_git(project_dir, &["rev-parse", "--short", "HEAD"])
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+
+    Ok(serde_json::json!({"success": true, "hash": hash}))
+}
+
+// ============================================================
 // pi 进程生命周期
 // ============================================================
 

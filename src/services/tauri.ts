@@ -144,6 +144,28 @@ export async function listSessions(): Promise<
   return invoke('list_sessions');
 }
 
+// ── Git 操作 ──────────────────────────────────────────────
+
+export async function stageFiles(dirName: string, files: string[]): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke('stage_files', { dirName, files });
+}
+
+export async function unstageFiles(dirName: string, files: string[]): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke('unstage_files', { dirName, files });
+}
+
+export async function discardChanges(dirName: string, files: string[], staged: boolean): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return invoke('discard_changes', { dirName, files, staged });
+}
+
+export async function gitCommit(dirName: string, message: string, files?: string[]): Promise<{ success: boolean; hash?: string }> {
+  if (!isTauriRuntime()) return { success: false };
+  return invoke('git_commit', { dirName, message, files });
+}
+
 function isTauriRuntime() {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
