@@ -364,6 +364,7 @@ export interface SessionMeta {
   timestamp: string;
   message_count?: number;
   cwd?: string;
+  pinned?: boolean;
 }
 
 export interface ProjectMeta {

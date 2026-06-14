@@ -14,6 +14,7 @@ pub struct SessionMeta {
     pub timestamp: String,
     pub message_count: Option<usize>,
     pub cwd: Option<String>,
+    pub pinned: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -103,7 +104,7 @@ fn scan_projects_uncached() -> Vec<ProjectMeta> {
             })
             .unwrap_or_default();
 
-        let session_name = read_session_name(&path);
+        let (session_name, pinned) = read_session_info(&path);
 
         projects
             .entry((project_name, dir_name))
@@ -115,6 +116,7 @@ fn scan_projects_uncached() -> Vec<ProjectMeta> {
                 timestamp,
                 message_count: None,
                 cwd: None,
+                pinned,
             });
     }
 
@@ -140,22 +142,33 @@ fn scan_projects_uncached() -> Vec<ProjectMeta> {
     result
 }
 
-/// 从 session 文件中提取名称：session_info > 首条用户消息
-fn read_session_name(path: &std::path::Path) -> Option<String> {
-    let file = std::fs::File::open(path).ok()?;
+/// 从 session 文件中提取名称和 pinned 状态：session_info > 首条用户消息
+fn read_session_info(path: &std::path::Path) -> (Option<String>, Option<bool>) {
+    let file = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return (None, None),
+    };
     let reader = std::io::BufReader::new(file);
     let mut first_user_msg: Option<String> = None;
 
     for line in reader.lines().take(200) {
-        let line = line.ok()?;
-        let val: Value = serde_json::from_str(&line).ok()?;
+        let line = match line {
+            Ok(l) => l,
+            Err(_) => continue,
+        };
+        let val: Value = match serde_json::from_str(&line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
         let entry_type = val.get("type").and_then(|t| t.as_str());
 
         if entry_type == Some("session_info") {
-            return val
+            let name = val
                 .get("name")
                 .and_then(|n| n.as_str())
                 .map(|s| s.to_string());
+            let pinned = val.get("pinned").and_then(|p| p.as_bool());
+            return (name, pinned);
         }
 
         if first_user_msg.is_none() && entry_type == Some("message") {
@@ -177,7 +190,7 @@ fn read_session_name(path: &std::path::Path) -> Option<String> {
         }
     }
 
-    first_user_msg
+    (first_user_msg, None)
 }
 
 fn extract_text(content: &Value) -> String {

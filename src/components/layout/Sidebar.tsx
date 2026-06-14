@@ -255,6 +255,37 @@ export default function Sidebar() {
     }
   };
 
+  const handleTogglePin = async (filePath: string) => {
+    setContextMenu(null);
+    // 找到当前会话并切换 pinned 状态
+    const { sessions } = useSessionStore.getState();
+    const session = sessions.find((s) => s.file_path === filePath);
+    if (!session) return;
+
+    const newPinned = !session.pinned;
+
+    // 更新本地状态
+    const updatedSessions = sessions.map((s) =>
+      s.file_path === filePath ? { ...s, pinned: newPinned } : s
+    );
+    useSessionStore.setState({ sessions: updatedSessions });
+
+    // 持久化到文件（通过重命名命令，将 pinned 信息写入 session_info）
+    try {
+      await renameSessionFile(filePath, session.session_name || '', newPinned);
+    } catch (e) {
+      console.error('Failed to toggle pin:', e);
+      // 回滚
+      const originalSessions = useSessionStore.getState().sessions;
+      useSessionStore.setState({
+        sessions: originalSessions.map((s) =>
+          s.file_path === filePath ? { ...s, pinned: !newPinned } : s
+        ),
+      });
+      addToast({ level: 'error', message: '置顶失败' });
+    }
+  };
+
   const handleDelete = async (target: { kind: 'session'; filePath: string } | { kind: 'project'; dirName: string; projectName: string }) => {
     setContextMenu(null);
     const isProject = target.kind === 'project';
@@ -392,6 +423,7 @@ export default function Sidebar() {
                   setContextMenu({ x: event.clientX, y: event.clientY, kind: 'session', sessionPath });
                 }}
                 onRename={handleRename}
+                onTogglePin={handleTogglePin}
               />
             );
           })
@@ -466,6 +498,7 @@ function ProjectTree({
   onProjectContextMenu,
   onSessionContextMenu,
   onRename,
+  onTogglePin,
 }: {
   item: ProjectTreeItem;
   expanded: boolean;
@@ -477,10 +510,15 @@ function ProjectTree({
   onProjectContextMenu: (event: MouseEvent, projectName: string, dirName: string) => void;
   onSessionContextMenu: (event: MouseEvent, sessionPath: string) => void;
   onRename: (sessionPath: string) => void;
+  onTogglePin: (sessionPath: string) => void;
 }) {
   const { project, sessions } = item;
 
-  // 按时间分组
+  // 分离置顶和未置顶会话
+  const pinnedSessions = sessions.filter((s) => s.pinned);
+  const unpinnedSessions = sessions.filter((s) => !s.pinned);
+
+  // 按时间分组未置顶会话
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today.getTime() - 86400000);
@@ -493,7 +531,7 @@ function ProjectTree({
     { label: '更早', sessions: [] },
   ];
 
-  for (const session of sessions) {
+  for (const session of unpinnedSessions) {
     const ts = new Date(session.timestamp);
     if (ts >= today) {
       groups[0].sessions.push(session);
@@ -531,6 +569,25 @@ function ProjectTree({
 
       {expanded && (
         <div className="sidebar-sessions">
+          {/* 置顶会话 */}
+          {pinnedSessions.length > 0 && (
+            <div className="sidebar-time-group">
+              <div className="sidebar-time-label">置顶</div>
+              {pinnedSessions.map((session) => (
+                <SessionRow
+                  key={session.file_path}
+                  session={session}
+                  active={activeSessionFile === session.file_path}
+                  onClick={() => onSwitchSession(session.file_path)}
+                  onContextMenu={(event) => onSessionContextMenu(event, session.file_path)}
+                  onRename={() => onRename(session.file_path)}
+                  onTogglePin={() => onTogglePin(session.file_path)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* 按时间分组的会话 */}
           {activeGroups.map((group) => (
             <div key={group.label} className="sidebar-time-group">
               <div className="sidebar-time-label">{group.label}</div>
@@ -542,6 +599,7 @@ function ProjectTree({
                   onClick={() => onSwitchSession(session.file_path)}
                   onContextMenu={(event) => onSessionContextMenu(event, session.file_path)}
                   onRename={() => onRename(session.file_path)}
+                  onTogglePin={() => onTogglePin(session.file_path)}
                 />
               ))}
             </div>
@@ -561,12 +619,14 @@ function SessionRow({
   onClick,
   onContextMenu,
   onRename,
+  onTogglePin,
 }: {
   session: SessionMeta;
   active: boolean;
   onClick: () => void;
   onContextMenu: (event: MouseEvent) => void;
   onRename: () => void;
+  onTogglePin?: () => void;
 }) {
   return (
     <div
@@ -585,6 +645,18 @@ function SessionRow({
           </div>
         </div>
       </button>
+      {onTogglePin && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onTogglePin();
+          }}
+          className={`sidebar-inline-action ${session.pinned ? 'sidebar-pinned' : ''}`}
+          title={session.pinned ? '取消置顶' : '置顶'}
+        >
+          <PinIcon pinned={session.pinned} />
+        </button>
+      )}
       <button
         onClick={onRename}
         className="sidebar-inline-action"
@@ -721,6 +793,14 @@ function CopyIcon({ className = 'w-4 h-4' }: { className?: string }) {
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8 8h9a2 2 0 012 2v9a2 2 0 01-2 2h-9a2 2 0 01-2-2v-9a2 2 0 012-2z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M5 16H4a2 2 0 01-2-2V5a2 2 0 012-2h9a2 2 0 012 2v1" />
+    </svg>
+  );
+}
+
+function PinIcon({ className = 'w-3 h-3', pinned = false }: { className?: string; pinned?: boolean }) {
+  return (
+    <svg className={className} fill={pinned ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 17v5m-3-3h6M5 12l7-7 7 7" />
     </svg>
   );
 }

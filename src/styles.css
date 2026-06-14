@@ -707,6 +707,14 @@ html, body, #root { height: 100%; overflow: hidden; }
   background: rgb(255 255 255 / 0.08);
 }
 
+.sidebar-pinned {
+  color: rgb(99 102 241);
+  opacity: 1 !important;
+}
+.dark .sidebar-pinned {
+  color: rgb(129 140 248);
+}
+
 .sidebar-empty-hint {
   padding: 0.5rem 0.5rem;
   font-size: 0.6875rem;

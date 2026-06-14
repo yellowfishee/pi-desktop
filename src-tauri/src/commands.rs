@@ -155,11 +155,12 @@ pub async fn delete_project(dir_name: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn rename_session_file(session_path: String, name: String) -> Result<(), String> {
+pub async fn rename_session_file(
+    session_path: String,
+    name: String,
+    pinned: Option<bool>,
+) -> Result<(), String> {
     let name = name.trim().to_string();
-    if name.is_empty() {
-        return Err("名称不能为空".into());
-    }
 
     let content =
         std::fs::read_to_string(&session_path).map_err(|e| format!("无法读取文件: {}", e))?;
@@ -178,7 +179,12 @@ pub async fn rename_session_file(session_path: String, name: String) -> Result<(
     for line in &mut lines {
         if let Ok(mut val) = serde_json::from_str::<Value>(line) {
             if val.get("type").and_then(|t| t.as_str()) == Some("session_info") {
-                val["name"] = Value::String(name.clone());
+                if !name.is_empty() {
+                    val["name"] = Value::String(name.clone());
+                }
+                if let Some(p) = pinned {
+                    val["pinned"] = Value::Bool(p);
+                }
                 *line = serde_json::to_string(&val).unwrap_or_else(|_| line.clone());
                 found = true;
                 break;
@@ -186,13 +192,14 @@ pub async fn rename_session_file(session_path: String, name: String) -> Result<(
         }
     }
 
-    if !found {
+    if !found && !name.is_empty() {
         let entry = serde_json::json!({
             "type": "session_info",
             "id": new_id,
             "parentId": null,
             "timestamp": now,
             "name": name,
+            "pinned": pinned.unwrap_or(false),
         });
         lines.push(serde_json::to_string(&entry).unwrap_or_default());
     }

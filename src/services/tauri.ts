@@ -112,9 +112,9 @@ export async function deleteProject(dirName: string): Promise<void> {
   return invoke('delete_project', { dirName });
 }
 
-export async function renameSessionFile(sessionPath: string, name: string): Promise<void> {
+export async function renameSessionFile(sessionPath: string, name: string, pinned?: boolean): Promise<void> {
   if (!isTauriRuntime()) return;
-  return invoke('rename_session_file', { sessionPath, name });
+  return invoke('rename_session_file', { sessionPath, name, pinned });
 }
 
 export async function listGitChanges(dirName: string): Promise<GitChanges> {
