@@ -349,6 +349,8 @@ export default function SettingsPanel() {
                 <Shortcut keys="Escape" label="中止当前生成" />
                 <Shortcut keys="⌘/Ctrl + Shift + M" label="循环切换模型" />
                 <Shortcut keys="⌘/Ctrl + Shift + T" label="循环切换思考深度" />
+                <Shortcut keys="⌘/Ctrl + Shift + ↑" label="跳转到上一条提问" />
+                <Shortcut keys="⌘/Ctrl + Shift + ↓" label="跳转到下一条提问" />
                 <Shortcut keys="⌘/Ctrl + K" label="打开设置面板" />
               </div>
             </Section>

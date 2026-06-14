@@ -18,6 +18,8 @@ export default function ChatPanel() {
   const changesOpen = useUIStore((s) => s.changesOpen);
   const setChangesOpen = useUIStore((s) => s.setChangesOpen);
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
+  const jumpToUserMessage = useUIStore((s) => s.jumpToUserMessage);
+  const jumpDirection = useUIStore((s) => s.jumpDirection);
   const scrollRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
   const scrollFrameRef = useRef<number | null>(null);
@@ -39,6 +41,46 @@ export default function ChatPanel() {
     shouldAutoScrollRef.current = distanceFromBottom < 120;
     setShowScrollButton(distanceFromBottom > 200);
   }, [virtualizer]);
+
+  // ── 跳转到用户消息 ─────────────────────────────
+  useEffect(() => {
+    if (jumpToUserMessage === 0) return;
+    const userIndices: number[] = [];
+    for (let i = 0; i < messages.length; i++) {
+      if (messages[i].role === 'user') userIndices.push(i);
+    }
+    if (userIndices.length === 0) return;
+
+    const scrollOffset = (virtualizer.scrollOffset as number) ?? 0;
+
+    if (jumpDirection === 'prev') {
+      let target = -1;
+      for (let i = userIndices.length - 1; i >= 0; i--) {
+        const idx = userIndices[i];
+        const itemStart = (virtualizer.getOffsetForIndex(idx) as unknown as number) ?? 0;
+        if (itemStart < scrollOffset - 10) {
+          target = idx;
+          break;
+        }
+      }
+      if (target === -1) target = userIndices[userIndices.length - 1];
+      virtualizer.scrollToIndex(target, { align: 'start', behavior: 'smooth' });
+    } else {
+      let target = -1;
+      for (let i = 0; i < userIndices.length; i++) {
+        const idx = userIndices[i];
+        const itemStart = (virtualizer.getOffsetForIndex(idx) as unknown as number) ?? 0;
+        if (itemStart > scrollOffset + 10) {
+          target = idx;
+          break;
+        }
+      }
+      if (target === -1) target = userIndices[0];
+      virtualizer.scrollToIndex(target, { align: 'start', behavior: 'smooth' });
+    }
+
+    shouldAutoScrollRef.current = false;
+  }, [jumpToUserMessage]);
 
   useEffect(() => {
     if (!shouldAutoScrollRef.current) return;

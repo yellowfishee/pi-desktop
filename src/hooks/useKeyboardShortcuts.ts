@@ -10,6 +10,8 @@ const THINKING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh'] as 
  * - Cmd/Ctrl + Shift + M: 循环切换模型
  * - Cmd/Ctrl + Shift + T: 循环切换思考深度
  * - Cmd/Ctrl + K: 打开设置面板
+ * - Cmd/Ctrl + Shift + ↑: 跳转到上一条用户消息
+ * - Cmd/Ctrl + Shift + ↓: 跳转到下一条用户消息
  */
 export function useKeyboardShortcuts() {
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -59,6 +61,18 @@ export function useKeyboardShortcuts() {
     if (mod && e.key === 'k') {
       e.preventDefault();
       useUIStore.getState().setSettingsOpen(true);
+    }
+
+    // Cmd/Ctrl + Shift + ↑: 跳转到上一条用户消息
+    if (mod && e.shiftKey && e.key === 'ArrowUp') {
+      e.preventDefault();
+      useUIStore.getState().triggerJumpToUserMessage('prev');
+    }
+
+    // Cmd/Ctrl + Shift + ↓: 跳转到下一条用户消息
+    if (mod && e.shiftKey && e.key === 'ArrowDown') {
+      e.preventDefault();
+      useUIStore.getState().triggerJumpToUserMessage('next');
     }
   }, []);
 
