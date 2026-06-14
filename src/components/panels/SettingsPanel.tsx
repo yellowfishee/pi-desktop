@@ -3,8 +3,9 @@ import { useSessionStore } from '../../stores/sessionStore';
 import { useUIStore } from '../../stores/uiStore';
 import { sendCommand, startPi, checkPiAvailable, listSessions } from '../../services/tauri';
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
+import DiagnosticsPanel from './DiagnosticsPanel';
 
-type SettingsTab = 'environment' | 'agent' | 'appearance' | 'advanced' | 'shortcuts';
+type SettingsTab = 'environment' | 'agent' | 'appearance' | 'advanced' | 'shortcuts' | 'diagnostics';
 
 export default function SettingsPanel() {
   const open = useUIStore((s) => s.settingsOpen);
@@ -82,6 +83,7 @@ export default function SettingsPanel() {
     { key: 'appearance', label: '外观' },
     { key: 'advanced', label: '高级' },
     { key: 'shortcuts', label: '快捷键' },
+    { key: 'diagnostics', label: '诊断' },
   ];
 
   return (
@@ -432,6 +434,12 @@ export default function SettingsPanel() {
                 <Shortcut keys="⌘/Ctrl + Shift + ↓" label="跳转到下一条提问" />
                 <Shortcut keys="⌘/Ctrl + K" label="打开设置面板" />
               </div>
+            </Section>
+          )}
+
+          {activeTab === 'diagnostics' && (
+            <Section title="诊断" description="pi 进程健康状态和诊断信息">
+              <DiagnosticsPanel />
             </Section>
           )}
         </div>
