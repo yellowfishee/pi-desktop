@@ -537,6 +537,10 @@ export interface SearchSessionsCommand {
   query: string;
 }
 
+export interface GetCommandsCommand {
+  type: "get_commands";
+}
+
 export interface BashCommand {
   type: "bash";
   command: string;
@@ -584,6 +588,7 @@ export type RpcCommand =
   | GetForkMessagesCommand
   | ExportHtmlCommand
   | SearchSessionsCommand
+  | GetCommandsCommand
   | BashCommand
   | AbortBashCommand
   | SetSteeringModeCommand

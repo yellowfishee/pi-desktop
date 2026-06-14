@@ -4,6 +4,7 @@ import { useMessageStore } from '../../stores/messageStore';
 import { useUIStore } from '../../stores/uiStore';
 import { sendCommand } from '../../services/tauri';
 import { invoke } from '@tauri-apps/api/core';
+import SlashMenu from './SlashMenu';
 import type { ImageContent } from '../../types/rpc';
 
 // ============================================================
@@ -35,6 +36,8 @@ export default function MessageInput() {
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState<ImageContent[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [slashMenuOpen, setSlashMenuOpen] = useState(false);
+  const [slashQuery, setSlashQuery] = useState('');
   const isStreaming = useSessionStore((s) => s.isStreaming);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -194,8 +197,50 @@ export default function MessageInput() {
   const handleInput = useCallback(() => {
     const el = textareaRef.current;
     if (el) {
+      // 检测斜杠命令
+      const text = el.value;
+      const cursorPos = el.selectionStart || 0;
+      // 找光标前的最后一个 /
+      const lastSlashPos = text.lastIndexOf('/', cursorPos - 1);
+      // 只有 / 在行首或空格后时触发
+      const charBefore = lastSlashPos > 0 ? text[lastSlashPos - 1] : '\n';
+      const isValidSlash = lastSlashPos >= 0 && (lastSlashPos === 0 || charBefore === ' ' || charBefore === '\n');
+      if (isValidSlash) {
+        const afterSlash = text.slice(lastSlashPos + 1, cursorPos);
+        // 不含空格时才显示菜单（参数还没开始输入）
+        if (!afterSlash.includes(' ')) {
+          setSlashQuery(afterSlash);
+          setSlashMenuOpen(true);
+        } else {
+          setSlashMenuOpen(false);
+        }
+      } else {
+        setSlashMenuOpen(false);
+      }
+
       el.style.height = 'auto';
       el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+    }
+  }, []);
+
+  const handleSlashSelect = useCallback((cmd: string) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const text = el.value;
+    const cursorPos = el.selectionStart || 0;
+    const lastSlashPos = text.lastIndexOf('/', cursorPos - 1);
+    if (lastSlashPos >= 0) {
+      // 替换 /xxx 为命令 + 空格
+      const before = text.slice(0, lastSlashPos);
+      const after = text.slice(cursorPos);
+      const newText = before + cmd + ' ' + after;
+      setText(newText);
+      setSlashMenuOpen(false);
+      setTimeout(() => {
+        el.focus();
+        const newPos = before.length + cmd.length + 1;
+        el.setSelectionRange(newPos, newPos);
+      }, 0);
     }
   }, []);
 
@@ -206,6 +251,13 @@ export default function MessageInput() {
 
   return (
     <div className="pb-4 pt-1" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+      <SlashMenu
+        visible={slashMenuOpen}
+        query={slashQuery}
+        onSelect={handleSlashSelect}
+        onClose={() => setSlashMenuOpen(false)}
+        textareaRef={textareaRef}
+      />
       <div
         className={`overflow-hidden rounded-xl border transition focus-within:border-[var(--border-hover)] shadow-[0_10px_32px_rgb(0_0_0/0.08)] dark:shadow-[0_12px_36px_rgb(0_0_0/0.35)] ${
           isDragOver
