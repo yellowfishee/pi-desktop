@@ -315,7 +315,7 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
           return {
             ...b,
             toolStatus: update.status as ContentBlock['toolStatus'],
-            toolResult,
+            toolResult: update.status === 'running' ? undefined : toolResult,
             partialResult: update.status === 'running' ? update.result : undefined,
             duration: duration ?? b.duration,
           };
@@ -484,7 +484,7 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
         if (!hasTool) return msg;
         const blocks = msg.content.map((b) => {
           if (b.type === 'toolCall' && b.toolCallId === toolCallId) {
-            // 避免重复设置结果
+            // 避免重复设置最终结果
             if (status !== 'running' && b.toolResult) return b;
             const toolResult = result as ToolResultMessage | undefined;
             const duration = result && typeof result === 'object' && 'duration' in result
@@ -493,7 +493,7 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
             return {
               ...b,
               toolStatus: status as ContentBlock['toolStatus'],
-              toolResult,
+              toolResult: status === 'running' ? undefined : toolResult,
               partialResult: status === 'running' ? result : undefined,
               duration: duration ?? b.duration,
             };
