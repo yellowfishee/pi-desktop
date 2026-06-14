@@ -33,6 +33,10 @@ export default memo(MessageBubble);
 
 function UserBubble({ message }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+
   const text = typeof message.rawContent === 'string'
     ? message.rawContent
     : message.content.find((b) => b.type === 'text')?.text || '';
@@ -41,6 +45,97 @@ function UserBubble({ message }: Props) {
   const images = !Array.isArray(message.rawContent)
     ? []
     : (message.rawContent as any[]).filter((part: any) => part.type === 'image');
+
+  // ── 双击进入编辑 ──────────────────────────────
+  const handleDoubleClick = () => {
+    if (isEditing) return;
+    setEditText(text);
+    setIsEditing(true);
+    setMenuOpen(false);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditText('');
+  };
+
+  const handleEditSend = async () => {
+    const trimmed = editText.trim();
+    if (!trimmed) return;
+    setEditLoading(true);
+    try {
+      const { sendCommand } = await import('../../services/tauri');
+      const { useSessionStore } = await import('../../stores/sessionStore');
+      const { useMessageStore } = await import('../../stores/messageStore');
+      const { listSessions } = await import('../../services/tauri');
+
+      // 1. 获取 forkable messages 中的 entryId
+      let entryId = message.entryId;
+      if (!entryId) {
+        const forkResult = await sendCommand({ type: 'get_fork_messages' });
+        if (forkResult.success && forkResult.data) {
+          const forkables = (forkResult.data as any).messages || [];
+          // 按文本匹配找到对应的 entryId
+          const match = forkables.find(
+            (m: any) => m.role === 'user' && m.text === text,
+          );
+          entryId = match?.entryId;
+        }
+      }
+
+      // 2. Fork 到新分支
+      const result = await sendCommand({ type: 'fork', entryId });
+      if (!result.success || !result.data) {
+        console.error('Fork failed:', result.error);
+        setEditLoading(false);
+        return;
+      }
+      const data = result.data as any;
+      if (!data.sessionId || !data.sessionFile) {
+        console.error('Fork response missing session info');
+        setEditLoading(false);
+        return;
+      }
+
+      useMessageStore.getState().clearMessages();
+      useSessionStore.getState().setActiveSession(data.sessionId, data.sessionFile);
+      try {
+        const projects = await listSessions();
+        useSessionStore.getState().setSessions(projects);
+      } catch { /* ignore */ }
+
+      // 3. 在新分支中发送编辑后的文本 + 原图片
+      const promptCmd: any = { type: 'prompt', message: trimmed };
+      if (images.length > 0) promptCmd.images = images;
+
+      // 添加用户消息并发送
+      useMessageStore.getState().addUserMessage(trimmed, images.length > 0 ? images : undefined);
+      useMessageStore.getState().ensureAssistantMessage();
+      useSessionStore.getState().setStreaming(true);
+
+      await sendCommand(promptCmd);
+
+      // 获取状态
+      const stateResult = await sendCommand({ type: 'get_state' });
+      if (stateResult.success && stateResult.data) {
+        const s = stateResult.data as any;
+        useSessionStore.getState().updateState({
+          model: s.model,
+          thinkingLevel: s.thinkingLevel || 'medium',
+          isStreaming: s.isStreaming || false,
+          isCompacting: s.isCompacting || false,
+          sessionName: s.sessionName,
+          messageCount: s.messageCount || 0,
+          pendingMessageCount: s.pendingMessageCount || 0,
+        } as any);
+      }
+    } catch (e) {
+      console.error('Edit resend failed:', e);
+    } finally {
+      setEditLoading(false);
+      setIsEditing(false);
+    }
+  };
 
   const handleFork = async () => {
     setMenuOpen(false);
@@ -163,7 +258,10 @@ function UserBubble({ message }: Props) {
       </div>
 
       <div className="max-w-[82%] sm:max-w-[72%]">
-        <div className="overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--raised-bg)]">
+        <div
+          className={`overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--raised-bg)] ${isEditing ? 'ring-2 ring-[var(--accent)]/30' : ''}`}
+          onDoubleClick={handleDoubleClick}
+        >
           {/* 图片 */}
           {images.length > 0 && (
             <div className="flex flex-wrap gap-1 p-2 pb-0">
@@ -177,14 +275,55 @@ function UserBubble({ message }: Props) {
               ))}
             </div>
           )}
-          {/* 文本 */}
-          {text && (
-            <div className="px-4 py-3 text-sm text-[var(--fg-color)]">
-              <p className="whitespace-pre-wrap break-words leading-relaxed">{text}</p>
+
+          {/* 编辑模式 */}
+          {isEditing ? (
+            <div className="px-3 py-2">
+              <textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                className="w-full min-h-[60px] max-h-[200px] resize-none rounded-md border border-[var(--border-color)] bg-[var(--surface-bg)] px-3 py-2 text-sm text-[var(--fg-color)] leading-relaxed focus:border-[var(--border-hover)] focus:outline-none"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') handleCancelEdit();
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleEditSend();
+                  }
+                }}
+              />
+              <div className="flex items-center justify-end gap-2 mt-2">
+                <span className="flex-1 text-[10px] text-[var(--fg-subtle)]">
+                  编辑后将以 Fork 方式发送到新分支
+                </span>
+                <button
+                  onClick={handleCancelEdit}
+                  className="rounded-md px-2.5 py-1 text-xs text-[var(--fg-muted)] hover:bg-[var(--hover-bg)] transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleEditSend}
+                  disabled={editLoading || !editText.trim()}
+                  className="rounded-md bg-[var(--accent)] px-3 py-1 text-xs font-medium text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  {editLoading ? '发送中...' : '发送'}
+                </button>
+              </div>
             </div>
+          ) : (
+            /* 正常显示文本 */
+            text && (
+              <div className="px-4 py-3 text-sm text-[var(--fg-color)]">
+                <p className="whitespace-pre-wrap break-words leading-relaxed">{text}</p>
+              </div>
+            )
           )}
         </div>
-        <div className="mt-1 text-right">
+        <div className="mt-1 flex items-center justify-end gap-1">
+          <span className="text-[10px] text-[var(--fg-subtle)] opacity-0 group-hover:opacity-100 transition-opacity">
+            双击可编辑重发
+          </span>
           <span className="text-[10px] text-[var(--fg-subtle)]">
             {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
