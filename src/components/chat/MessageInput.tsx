@@ -270,23 +270,80 @@ export default function MessageInput() {
   }, []);
 
   const handleSlashSelect = useCallback((cmd: string) => {
+    setSlashMenuOpen(false);
     const el = textareaRef.current;
     if (!el) return;
+
+    // 清除输入框中的 /xxx 文本
     const text = el.value;
     const cursorPos = el.selectionStart || 0;
     const lastSlashPos = text.lastIndexOf('/', cursorPos - 1);
     if (lastSlashPos >= 0) {
-      // 替换 /xxx 为命令 + 空格
       const before = text.slice(0, lastSlashPos);
       const after = text.slice(cursorPos);
-      const newText = before + cmd + ' ' + after;
-      setText(newText);
-      setSlashMenuOpen(false);
-      setTimeout(() => {
-        el.focus();
-        const newPos = before.length + cmd.length + 1;
-        el.setSelectionRange(newPos, newPos);
-      }, 0);
+      setText(before + after);
+    }
+
+    // 根据命令执行对应操作
+    switch (cmd) {
+      case '/compact':
+        sendCommand({ type: 'compact' }).catch(console.error);
+        useUIStore.getState().addToast({ level: 'info', message: '已触发压缩' });
+        break;
+      case '/fork':
+        sendCommand({ type: 'fork' }).then(async (r) => {
+          if (r.success && r.data) {
+            const d = r.data as any;
+            useMessageStore.getState().clearMessages();
+            useSessionStore.getState().setActiveSession(d.sessionId, d.sessionFile);
+            const { listSessions } = await import('../../services/tauri');
+            listSessions().then((p) => useSessionStore.getState().setSessions(p));
+          }
+        }).catch(console.error);
+        break;
+      case '/clone':
+        sendCommand({ type: 'clone' }).then(async (r) => {
+          if (r.success && r.data) {
+            const d = r.data as any;
+            useMessageStore.getState().clearMessages();
+            useSessionStore.getState().setActiveSession(d.sessionId, d.sessionFile);
+            const { listSessions } = await import('../../services/tauri');
+            listSessions().then((p) => useSessionStore.getState().setSessions(p));
+          }
+        }).catch(console.error);
+        break;
+      case '/model':
+        // 触发 ChatInfoBar 中的模型下拉
+        window.dispatchEvent(new CustomEvent('pi:open-model-menu'));
+        break;
+      case '/thinking':
+        window.dispatchEvent(new CustomEvent('pi:open-thinking-menu'));
+        break;
+      case '/new':
+        sendCommand({ type: 'new_session' }).then(async (r) => {
+          if (r.success && r.data) {
+            const d = r.data as any;
+            useMessageStore.getState().clearMessages();
+            useSessionStore.getState().setActiveSession(d.sessionId, d.sessionFile);
+            const { listSessions } = await import('../../services/tauri');
+            listSessions().then((p) => useSessionStore.getState().setSessions(p));
+          }
+        }).catch(console.error);
+        break;
+      case '/export':
+        sendCommand({ type: 'export_html' }).then((r: any) => {
+          if (r.success) {
+            useUIStore.getState().addToast({ level: 'info', message: `已导出到 ${r.data?.path || r.data?.outputPath || '文件'}` });
+          }
+        }).catch(console.error);
+        break;
+      case '/help':
+        useUIStore.getState().addToast({ level: 'info', message: '可用命令: /compact /fork /clone /model /thinking /new /export /help' });
+        break;
+      default:
+        // pi 自定义命令：作为 prompt 发送
+        handleSend();
+        break;
     }
   }, []);
 

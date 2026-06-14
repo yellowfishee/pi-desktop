@@ -29,6 +29,18 @@ export default function ChatInfoBar() {
     return () => clearInterval(interval);
   }, [isStreaming, refreshStats]);
 
+  // 监听斜杠命令触发的模型/思考下拉
+  useEffect(() => {
+    const openModel = () => setModelMenuOpen(true);
+    const openThinking = () => setThinkingMenuOpen(true);
+    window.addEventListener('pi:open-model-menu', openModel);
+    window.addEventListener('pi:open-thinking-menu', openThinking);
+    return () => {
+      window.removeEventListener('pi:open-model-menu', openModel);
+      window.removeEventListener('pi:open-thinking-menu', openThinking);
+    };
+  }, []);
+
   // 初始化时刷新一次
   useEffect(() => { refreshStats(); }, [refreshStats]);
   useEffect(() => {
