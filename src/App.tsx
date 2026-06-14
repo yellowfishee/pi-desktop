@@ -9,6 +9,7 @@ import ChangesPanel from './components/panels/ChangesPanel';
 import SettingsPanel from './components/panels/SettingsPanel';
 import NotificationStack from './components/shared/NotificationStack';
 import ExtensionDialogModal from './components/shared/ExtensionDialogModal';
+import CommandPalette from './components/shared/CommandPalette';
 import { ConfirmProvider } from './components/shared/Confirm';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
@@ -188,6 +189,7 @@ function App() {
       <NotificationStack />
       <SettingsPanel />
       <ExtensionDialogModal />
+      <CommandPalette />
     </div>
     </ConfirmProvider>
   );

@@ -346,6 +346,10 @@ export default function SettingsPanel() {
 
           {activeTab === 'advanced' && (
             <Section title="高级" description="调试和高级会话控制">
+              {/* ── 活跃扩展 ───────────────────────── */}
+              <Field label="活跃扩展">
+                <ActiveExtensions />
+              </Field>
               {/* ── 修复主题 ─────────────────────────── */}
               <Field label="修复导出主题">
                 <p className="text-[11px] text-[var(--fg-muted)] leading-relaxed">
@@ -464,7 +468,8 @@ export default function SettingsPanel() {
                 <Shortcut keys="⌘/Ctrl + Shift + T" label="循环切换思考深度" />
                 <Shortcut keys="⌘/Ctrl + Shift + ↑" label="跳转到上一条提问" />
                 <Shortcut keys="⌘/Ctrl + Shift + ↓" label="跳转到下一条提问" />
-                <Shortcut keys="⌘/Ctrl + K" label="打开设置面板" />
+                <Shortcut keys="⌘/Ctrl + Shift + N" label="新建窗口" />
+                <Shortcut keys="⌘/Ctrl + P" label="打开命令面板" />
               </div>
             </Section>
           )}
@@ -529,6 +534,32 @@ function StatusItem({ label, available }: { label: string; available: boolean })
     <div className="flex items-center gap-2">
       <span className={`h-2 w-2 rounded-full ${available ? 'bg-green-500' : 'bg-red-500'}`} />
       <span className="text-xs text-[var(--fg-muted)]">{label}</span>
+    </div>
+  );
+}
+
+function ActiveExtensions() {
+  const extensionStatuses = useUIStore((s) => s.extensionStatuses);
+  const extensionWidgets = useUIStore((s) => s.extensionWidgets);
+  const entries = [
+    ...Object.keys(extensionStatuses).map((key) => ({ key, type: 'status' as const, value: extensionStatuses[key] })),
+    ...Object.keys(extensionWidgets).map((key) => ({ key, type: 'widget' as const, value: '' })),
+  ];
+
+  if (entries.length === 0) {
+    return <p className="text-[11px] text-[var(--fg-muted)]">暂无活跃扩展</p>;
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {entries.map(({ key, type, value }) => (
+        <div key={key} className="flex items-center gap-2 text-[11px]">
+          <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+          <span className="text-[var(--fg-muted)]">{key}</span>
+          <span className="text-[var(--fg-subtle)] text-[10px]">{type}</span>
+          {value && <span className="text-[var(--fg-muted)] text-[10px]">— {value.replace(/\u001b\[[0-9;]*m/g, '')}</span>}
+        </div>
+      ))}
     </div>
   );
 }

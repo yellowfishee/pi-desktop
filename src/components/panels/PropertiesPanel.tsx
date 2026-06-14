@@ -3,6 +3,7 @@ import { useMessageStore } from '../../stores/messageStore';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useUIStore } from '../../stores/uiStore';
 import type { ContentBlock, UIMessage } from '../../types/rpc';
+import SessionTree from './SessionTree';
 
 type CheckRun = {
   id: string;
@@ -103,6 +104,10 @@ export default function PropertiesPanel() {
           </div>
         </PanelSection>
       )}
+
+      <PanelSection title="Branches">
+        <SessionTree />
+      </PanelSection>
     </aside>
   );
 }

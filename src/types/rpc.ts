@@ -365,6 +365,7 @@ export interface SessionMeta {
   message_count?: number;
   cwd?: string;
   pinned?: boolean;
+  parent_session_id?: string;
 }
 
 export interface ProjectMeta {
@@ -531,6 +532,11 @@ export interface ExportHtmlCommand {
   outputPath?: string;
 }
 
+export interface SearchSessionsCommand {
+  type: "search_sessions";
+  query: string;
+}
+
 export interface BashCommand {
   type: "bash";
   command: string;
@@ -577,6 +583,7 @@ export type RpcCommand =
   | CloneCommand
   | GetForkMessagesCommand
   | ExportHtmlCommand
+  | SearchSessionsCommand
   | BashCommand
   | AbortBashCommand
   | SetSteeringModeCommand

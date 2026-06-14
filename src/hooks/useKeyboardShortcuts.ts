@@ -57,10 +57,14 @@ export function useKeyboardShortcuts() {
       useSessionStore.getState().updateState({ thinkingLevel: next });
     }
 
-    // Cmd/Ctrl + K: 打开设置面板
-    if (mod && e.key === 'k') {
+    // Cmd/Ctrl + P: 命令面板（由 CommandPalette 组件处理，不在此拦截）
+
+    // Cmd/Ctrl + Shift + N: 新建窗口
+    if (mod && e.shiftKey && e.key === 'N') {
       e.preventDefault();
-      useUIStore.getState().setSettingsOpen(true);
+      import('@tauri-apps/api/core').then(({ invoke }) => {
+        invoke('open_new_window').catch(console.error);
+      });
     }
 
     // Cmd/Ctrl + Shift + ↑: 跳转到上一条用户消息
