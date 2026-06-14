@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { sendCommand } from '../../services/tauri';
 
 type CommandItem = { name: string; description: string };
@@ -22,7 +22,12 @@ interface Props {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }
 
-export default function SlashMenu({ visible, query, onSelect, onClose, textareaRef }: Props) {
+export interface SlashMenuHandle {
+  handleKeyDown: (e: React.KeyboardEvent) => void;
+}
+
+const SlashMenu = forwardRef<SlashMenuHandle, Props>(
+  function SlashMenu({ visible, query, onSelect, onClose, textareaRef }, ref) {
   const [piCommands, setPiCommands] = useState<CommandItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -75,7 +80,7 @@ export default function SlashMenu({ visible, query, onSelect, onClose, textareaR
   );
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: React.KeyboardEvent | KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setSelectedIndex((i) => Math.min(i + 1, filtered.length - 1));
@@ -92,6 +97,8 @@ export default function SlashMenu({ visible, query, onSelect, onClose, textareaR
     },
     [filtered, selectedIndex, handleSelect, onClose],
   );
+
+  useImperativeHandle(ref, () => ({ handleKeyDown }), [handleKeyDown]);
 
   // 滚动到可见
   useEffect(() => {
@@ -150,4 +157,6 @@ export default function SlashMenu({ visible, query, onSelect, onClose, textareaR
       </div>
     </>
   );
-}
+});
+
+export default SlashMenu;

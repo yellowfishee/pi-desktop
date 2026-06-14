@@ -5,6 +5,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { sendCommand } from '../../services/tauri';
 import { invoke } from '@tauri-apps/api/core';
 import SlashMenu from './SlashMenu';
+import type { SlashMenuHandle } from './SlashMenu';
 import type { ImageContent } from '../../types/rpc';
 
 // ============================================================
@@ -41,6 +42,7 @@ export default function MessageInput() {
   const isStreaming = useSessionStore((s) => s.isStreaming);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const slashMenuRef = useRef<SlashMenuHandle>(null);
 
   // ── set_editor_text 扩展预填 ─────────────────────
   useEffect(() => {
@@ -218,12 +220,24 @@ export default function MessageInput() {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
+      // 斜杠菜单打开时，转发方向键和 Enter/Esc
+      if (slashMenuOpen) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === 'Escape') {
+          e.preventDefault();
+          slashMenuRef.current?.handleKeyDown(e);
+          return;
+        }
+        // 其他键：关闭菜单（用户继续输入）
+        if (e.key !== 'Shift' && e.key !== 'Meta' && e.key !== 'Control' && e.key !== 'Alt') {
+          setSlashMenuOpen(false);
+        }
+      }
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         handleSend();
       }
     },
-    [handleSend],
+    [handleSend, slashMenuOpen],
   );
 
   const handleInput = useCallback(() => {
@@ -284,6 +298,7 @@ export default function MessageInput() {
   return (
     <div className="pb-4 pt-1" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
       <SlashMenu
+        ref={slashMenuRef}
         visible={slashMenuOpen}
         query={slashQuery}
         onSelect={handleSlashSelect}
