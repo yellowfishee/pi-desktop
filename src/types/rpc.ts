@@ -526,6 +526,11 @@ export interface GetForkMessagesCommand {
   type: "get_fork_messages";
 }
 
+export interface ExportHtmlCommand {
+  type: "export_html";
+  outputPath?: string;
+}
+
 export type RpcCommand =
   | PromptCommand
   | AbortCommand
@@ -542,7 +547,8 @@ export type RpcCommand =
   | SetAutoCompactionCommand
   | ForkCommand
   | CloneCommand
-  | GetForkMessagesCommand;
+  | GetForkMessagesCommand
+  | ExportHtmlCommand;
 
 // --- RPC Response ---
 

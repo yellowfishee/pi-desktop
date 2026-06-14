@@ -302,6 +302,39 @@ export default function Sidebar() {
     }
   };
 
+  const handleExportHtml = async (filePath: string) => {
+    setContextMenu(null);
+    try {
+      // 先切换到该会话再导出
+      const currentFile = useSessionStore.getState().activeSessionFile;
+      if (currentFile !== filePath) {
+        useMessageStore.getState().clearMessages();
+        useSessionStore.getState().setSessionLoading(true);
+        const rawMessages = await readSessionMessages(filePath);
+        useMessageStore.getState().setMessages(
+          rawMessages.map((m: any) => ({ ...m, isComplete: true, content: m.content || [] })),
+        );
+        useSessionStore.getState().setActiveSession(sessionIdFromPath(filePath), filePath);
+        await sendCommand({ type: 'switch_session', sessionPath: filePath });
+        useSessionStore.getState().setSessionLoading(false);
+      }
+      const result = await sendCommand({ type: 'export_html' });
+      if (result.success && result.data) {
+        const outPath = (result.data as any).path || (result.data as any).outputPath;
+        if (outPath) {
+          addToast({ level: 'info', message: `已导出到 ${outPath}`, duration: 6000 });
+        } else {
+          addToast({ level: 'info', message: '导出成功' });
+        }
+      } else {
+        addToast({ level: 'error', message: `导出失败: ${result.error || '未知错误'}` });
+      }
+    } catch (e) {
+      console.error('Export HTML failed:', e);
+      addToast({ level: 'error', message: `导出失败: ${e}` });
+    }
+  };
+
   // ── Collapsed rail ────────────────────────────────────────
 
   if (sidebarCollapsed) {
@@ -438,6 +471,10 @@ export default function Sidebar() {
                 <MenuButton onClick={() => copySessionPath(contextMenu.sessionPath)}>
                   <CopyIcon className="w-3.5 h-3.5" />
                   复制路径
+                </MenuButton>
+                <MenuButton onClick={() => handleExportHtml(contextMenu.sessionPath)}>
+                  <ExportIcon className="w-3.5 h-3.5" />
+                  导出 HTML
                 </MenuButton>
                 <div className="sidebar-context-divider" />
                 <MenuButton danger onClick={() => handleDelete({ kind: 'session', filePath: contextMenu.sessionPath })}>
@@ -768,6 +805,14 @@ function CopyIcon({ className = 'w-4 h-4' }: { className?: string }) {
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8 8h9a2 2 0 012 2v9a2 2 0 01-2 2h-9a2 2 0 01-2-2v-9a2 2 0 012-2z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M5 16H4a2 2 0 01-2-2V5a2 2 0 012-2h9a2 2 0 012 2v1" />
+    </svg>
+  );
+}
+
+function ExportIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
     </svg>
   );
 }
