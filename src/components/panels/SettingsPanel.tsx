@@ -4,7 +4,7 @@ import { useUIStore } from '../../stores/uiStore';
 import { sendCommand, startPi, checkPiAvailable, listSessions } from '../../services/tauri';
 import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 
-type SettingsTab = 'environment' | 'agent' | 'appearance' | 'shortcuts';
+type SettingsTab = 'environment' | 'agent' | 'appearance' | 'advanced' | 'shortcuts';
 
 export default function SettingsPanel() {
   const open = useUIStore((s) => s.settingsOpen);
@@ -80,6 +80,7 @@ export default function SettingsPanel() {
     { key: 'environment', label: '环境' },
     { key: 'agent', label: '智能体' },
     { key: 'appearance', label: '外观' },
+    { key: 'advanced', label: '高级' },
     { key: 'shortcuts', label: '快捷键' },
   ];
 
@@ -337,6 +338,84 @@ export default function SettingsPanel() {
                     ))}
                   </div>
                 </div>
+              </Field>
+            </Section>
+          )}
+
+          {activeTab === 'advanced' && (
+            <Section title="高级" description="调试和高级会话控制">
+              <Field label="Bash 命令">
+                <div className="flex gap-2">
+                  <input
+                    id="bash-input"
+                    placeholder="输入 bash 命令..."
+                    className="flex-1 input px-2 py-1.5 text-xs font-mono"
+                    onKeyDown={async (e) => {
+                      if (e.key === 'Enter') {
+                        const cmd = (e.target as HTMLInputElement).value.trim();
+                        if (!cmd) return;
+                        sendCommand({ type: 'bash', command: cmd }).catch(console.error);
+                        (e.target as HTMLInputElement).value = '';
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => sendCommand({ type: 'abort_bash' }).catch(() => {})}
+                    className="rounded-md border border-red-500/30 px-2 py-1.5 text-xs text-red-500 hover:bg-red-500/10 transition-colors"
+                  >
+                    中止
+                  </button>
+                </div>
+              </Field>
+
+              <Field label="Steering 模式">
+                <select
+                  defaultValue="immediate"
+                  onChange={(e) => {
+                    sendCommand({ type: 'set_steering_mode', mode: e.target.value }).catch(console.error);
+                  }}
+                  className="w-full max-w-[200px] rounded-md border border-[var(--border-color)] bg-[var(--surface-bg)] px-2 py-1.5 text-xs text-[var(--fg-color)]"
+                >
+                  <option value="disabled">禁用</option>
+                  <option value="immediate">立即（当前 turn 后）</option>
+                  <option value="after_turn">当前 Agent 结束后</option>
+                </select>
+              </Field>
+
+              <Field label="Follow-up 模式">
+                <select
+                  defaultValue="disabled"
+                  onChange={(e) => {
+                    sendCommand({ type: 'set_follow_up_mode', mode: e.target.value }).catch(console.error);
+                  }}
+                  className="w-full max-w-[200px] rounded-md border border-[var(--border-color)] bg-[var(--surface-bg)] px-2 py-1.5 text-xs text-[var(--fg-color)]"
+                >
+                  <option value="disabled">禁用</option>
+                  <option value="immediate">立即</option>
+                  <option value="after_agent">Agent 完全结束后</option>
+                </select>
+              </Field>
+
+              <Field label="自动重试">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    defaultChecked={true}
+                    onChange={(e) => {
+                      sendCommand({ type: 'set_auto_retry', enabled: e.target.checked }).catch(console.error);
+                    }}
+                    className="h-3.5 w-3.5 rounded border-[var(--border-color)] text-[var(--accent)]"
+                  />
+                  <span className="text-xs text-[var(--fg-muted)]">
+                    API 错误时自动重试
+                  </span>
+                </label>
+                <button
+                  onClick={() => sendCommand({ type: 'abort_retry' }).catch(() => {})}
+                  className="mt-2 rounded-md border border-red-500/30 px-2 py-1 text-xxs text-red-500 hover:bg-red-500/10 transition-colors"
+                >
+                  中止当前重试
+                </button>
               </Field>
             </Section>
           )}
