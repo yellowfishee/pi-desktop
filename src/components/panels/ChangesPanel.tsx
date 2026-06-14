@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, useCallback, type ReactNode } from 'react';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useUIStore } from '../../stores/uiStore';
-import { listGitChanges, stageFiles, unstageFiles, discardChanges } from '../../services/tauri';
+import { listGitChanges, stageFiles, unstageFiles, discardChanges, gitCommit } from '../../services/tauri';
 import { useConfirm } from '../shared/Confirm';
+import CommitDialog from './CommitDialog';
 import type { GitChangeFile, GitChanges } from '../../types/rpc';
 
 interface TreeNode {
@@ -61,6 +62,7 @@ export default function ChangesPanel() {
 
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [operating, setOperating] = useState(false);
+  const [showCommitDialog, setShowCommitDialog] = useState(false);
 
   const isFileStaged = (status: string) => status[0] !== ' ' && status[0] !== '?';
   const isFileUnstaged = (status: string) => (status[1] || (status[0] === '?' ? '?' : ' ')) !== ' ';
@@ -168,6 +170,24 @@ export default function ChangesPanel() {
 
   const hasStaged = files.some((f) => isFileStaged(f.status));
 
+  const stagedFiles = files.filter((f) => isFileStaged(f.status));
+
+  const handleCommit = useCallback(async (message: string) => {
+    const paths = selectedFiles.size > 0 ? [...selectedFiles] : undefined;
+    setOperating(true);
+    try {
+      const result = await gitCommit(activeProjectDir, message, paths);
+      setSelectedFiles(new Set());
+      setShowCommitDialog(false);
+      await refreshChanges();
+      addToast({ level: 'info', message: result.hash ? `已提交 ${result.hash}` : '提交成功' });
+    } catch (e) {
+      addToast({ level: 'error', message: `提交失败: ${e}` });
+    } finally {
+      setOperating(false);
+    }
+  }, [selectedFiles.size, activeProjectDir, refreshChanges, addToast]);
+
   return (
     <div className="flex h-full flex-col border-l border-[var(--border-color)] bg-[var(--panel-bg)]">
       <div className="flex items-center justify-between gap-2 border-b border-[var(--border-color)] bg-[var(--panel-bg)]/95 px-3 py-2.5 backdrop-blur">
@@ -230,10 +250,7 @@ export default function ChangesPanel() {
           </button>
           <div className="mx-0.5 h-4 w-px bg-[var(--border-color)]" />
           <button
-            onClick={() => {
-              // Commit dialog will be implemented in Step 1.3
-              addToast({ level: 'info', message: 'Commit 对话框将在下一步实现' });
-            }}
+            onClick={() => setShowCommitDialog(true)}
             disabled={!hasStaged || operating}
             className="rounded px-2 py-0.5 text-[10px] font-medium text-[var(--accent)] hover:bg-[var(--accent-soft)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
             title="提交暂存的更改"
@@ -294,6 +311,16 @@ export default function ChangesPanel() {
           )}
         </div>
       )}
+
+      <CommitDialog
+        open={showCommitDialog}
+        files={files}
+        stagedFiles={stagedFiles}
+        selectedFiles={[...selectedFiles]}
+        operating={operating}
+        onCommit={handleCommit}
+        onClose={() => setShowCommitDialog(false)}
+      />
     </div>
   );
 }
