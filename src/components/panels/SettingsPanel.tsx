@@ -26,6 +26,7 @@ export default function SettingsPanel() {
   const model = useSessionStore((s) => s.model);
   const availableModels = useSessionStore((s) => s.availableModels);
   const thinkingLevel = useSessionStore((s) => s.thinkingLevel);
+  const autoCompactionEnabled = useSessionStore((s) => s.autoCompactionEnabled);
   const loadModels = useSessionStore((s) => s.loadModels);
   const switchModel = useSessionStore((s) => s.switchModel);
 
@@ -255,6 +256,29 @@ export default function SettingsPanel() {
                     </button>
                   ))}
                 </div>
+              </Field>
+
+              <Field label="自动压缩">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoCompactionEnabled}
+                    onChange={async (e) => {
+                      const enabled = e.target.checked;
+                      useSessionStore.getState().setAutoCompaction(enabled);
+                      try {
+                        await sendCommand({ type: 'set_auto_compaction', enabled });
+                      } catch (err) {
+                        console.error('Failed to set auto compaction:', err);
+                        useSessionStore.getState().setAutoCompaction(!enabled);
+                      }
+                    }}
+                    className="h-3.5 w-3.5 rounded border-[var(--border-color)] text-[var(--accent)] focus:ring-[var(--accent)]"
+                  />
+                  <span className="text-xs text-[var(--fg-muted)]">
+                    {autoCompactionEnabled ? '已启用：上下文接近限制时自动压缩' : '已禁用：需要手动触发压缩'}
+                  </span>
+                </label>
               </Field>
             </Section>
           )}

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useUIStore } from '../../stores/uiStore';
+import { sendCommand } from '../../services/tauri';
 
 export default function StatusBar() {
   const model = useSessionStore((s) => s.model);
@@ -58,6 +59,17 @@ export default function StatusBar() {
 
       {isCompacting && (
         <span className="text-yellow-500">压缩中...</span>
+      )}
+
+      {/* Compact 按钮 */}
+      {!isCompacting && (
+        <button
+          onClick={() => sendCommand({ type: 'compact' }).catch(console.error)}
+          className="rounded px-1.5 py-0.5 text-[10px] text-[var(--fg-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)] transition-colors"
+          title="手动压缩上下文"
+        >
+          压缩
+        </button>
       )}
 
       {/* 队列 */}

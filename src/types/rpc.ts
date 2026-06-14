@@ -502,6 +502,16 @@ export interface SetSessionNameCommand {
   name: string;
 }
 
+export interface CompactCommand {
+  type: "compact";
+  customInstructions?: string;
+}
+
+export interface SetAutoCompactionCommand {
+  type: "set_auto_compaction";
+  enabled: boolean;
+}
+
 export type RpcCommand =
   | PromptCommand
   | AbortCommand
@@ -513,7 +523,9 @@ export type RpcCommand =
   | GetAvailableModelsCommand
   | SetModelCommand
   | SetThinkingLevelCommand
-  | SetSessionNameCommand;
+  | SetSessionNameCommand
+  | CompactCommand
+  | SetAutoCompactionCommand;
 
 // --- RPC Response ---
 
