@@ -6,6 +6,7 @@ import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
 import StatusBar from './StatusBar';
 import { IconPi, IconSettings } from '../shared/Icons';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 export default function ChatPanel() {
   const messages = useMessageStore((s) => s.messages);
@@ -18,27 +19,38 @@ export default function ChatPanel() {
   const setChangesOpen = useUIStore((s) => s.setChangesOpen);
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
   const scrollFrameRef = useRef<number | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
+  const virtualizer = useVirtualizer({
+    count: messages.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 200,
+    overscan: 5,
+  });
+
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const totalSize = virtualizer.getTotalSize();
+    const offset = virtualizer.scrollOffset ?? 0;
+    const distanceFromBottom = totalSize - offset - el.clientHeight;
     shouldAutoScrollRef.current = distanceFromBottom < 120;
     setShowScrollButton(distanceFromBottom > 200);
-  }, []);
+  }, [virtualizer]);
 
   useEffect(() => {
-    if (!bottomRef.current || !shouldAutoScrollRef.current) return;
-    if (scrollFrameRef.current !== null) {
-      cancelAnimationFrame(scrollFrameRef.current);
-    }
+    if (!shouldAutoScrollRef.current) return;
+    const lastIndex = messages.length - 1;
+    if (lastIndex < 0) return;
+    if (scrollFrameRef.current !== null) cancelAnimationFrame(scrollFrameRef.current);
     scrollFrameRef.current = requestAnimationFrame(() => {
       scrollFrameRef.current = null;
-      bottomRef.current?.scrollIntoView({ behavior: isStreaming ? 'auto' : 'smooth' });
+      virtualizer.scrollToIndex(lastIndex, {
+        align: 'end',
+        behavior: isStreaming ? 'auto' : 'smooth',
+      });
     });
 
     return () => {
@@ -47,13 +59,15 @@ export default function ChatPanel() {
         scrollFrameRef.current = null;
       }
     };
-  }, [messages, isStreaming]);
+  }, [messages, isStreaming, virtualizer]);
 
   const scrollToBottom = useCallback(() => {
     shouldAutoScrollRef.current = true;
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const lastIndex = messages.length - 1;
+    if (lastIndex < 0) return;
+    virtualizer.scrollToIndex(lastIndex, { align: 'end', behavior: 'smooth' });
     setShowScrollButton(false);
-  }, []);
+  }, [messages.length, virtualizer]);
 
   return (
     <div className="relative flex h-full flex-col bg-[var(--panel-bg)]">
@@ -95,12 +109,29 @@ export default function ChatPanel() {
           </div>
         ) : (
           <div className="mx-auto w-full max-w-4xl overflow-x-hidden px-5 pb-8 pt-8 sm:px-7 lg:px-8">
-            {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
-            ))}
+            <div style={{ height: virtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
+              {virtualizer.getVirtualItems().map((virtualItem) => {
+                const msg = messages[virtualItem.index];
+                return (
+                  <div
+                    key={virtualItem.key}
+                    data-index={virtualItem.index}
+                    ref={virtualizer.measureElement}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualItem.start}px)`,
+                    }}
+                  >
+                    <MessageBubble message={msg} />
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
 
       {/* "回到底部" 浮动按钮 */}
