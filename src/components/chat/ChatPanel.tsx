@@ -5,6 +5,7 @@ import { useUIStore } from '../../stores/uiStore';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
 import StatusBar from './StatusBar';
+import ChatInfoBar from './ChatInfoBar';
 import { IconPi, IconSettings } from '../shared/Icons';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
@@ -190,6 +191,11 @@ export default function ChatPanel() {
           </button>
         </div>
       )}
+
+      {/* 信息栏 — 消息区与输入框之间 */}
+      <div className="flex-shrink-0">
+        <ChatInfoBar />
+      </div>
 
       {/* 输入区域 — 带渐变遮罩分隔 */}
       <div className="relative flex-shrink-0">
