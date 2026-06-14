@@ -9,13 +9,23 @@ export default function ChatInfoBar() {
   const thinkingLevel = useSessionStore((s) => s.thinkingLevel);
   const availableModels = useSessionStore((s) => s.availableModels);
   const stats = useSessionStore((s) => s.stats);
+  const isStreaming = useSessionStore((s) => s.isStreaming);
   const sessionName = useSessionStore((s) => s.sessionName);
   const messageCount = useSessionStore((s) => s.messageCount);
   const activeSessionFile = useSessionStore((s) => s.activeSessionFile);
   const activeProjectDir = useSessionStore((s) => s.activeProjectDir);
+  const refreshStats = useSessionStore((s) => s.refreshStats);
   const [changedFiles, setChangedFiles] = useState(0);
 
-  // 检测 Git 变更数
+  // 流式时每 2 秒刷新 Token 统计
+  useEffect(() => {
+    if (!isStreaming) return;
+    const interval = setInterval(() => refreshStats(), 2000);
+    return () => clearInterval(interval);
+  }, [isStreaming, refreshStats]);
+
+  // 初始化时刷新一次
+  useEffect(() => { refreshStats(); }, [refreshStats]);
   useEffect(() => {
     if (!activeProjectDir) return;
     const interval = setInterval(async () => {

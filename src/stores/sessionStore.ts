@@ -95,7 +95,7 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
     try {
       const result = await invoke<any>('send_command', { command: { type: 'get_session_stats' } });
       if (result?.success && result.data) {
-        set({ stats: result.data as SessionStats });
+        set({ stats: result.data as SessionStats, messageCount: (result.data as any).totalMessages });
       }
     } catch (e) {
       console.error('Failed to refresh stats:', e);
