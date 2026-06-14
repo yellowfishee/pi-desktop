@@ -379,6 +379,22 @@ export default function Sidebar() {
             <PlusIcon className="w-3.5 h-3.5" />
             新建对话
           </button>
+          <button
+            onClick={() => {
+              const allExpanded = Object.values(expandedProjects).every(Boolean) && projects.length > 0;
+              if (allExpanded) {
+                setExpandedProjects({});
+              } else {
+                const expand: Record<string, boolean> = {};
+                projects.forEach((p) => { expand[p.dir_name] = true; });
+                setExpandedProjects(expand);
+              }
+            }}
+            className="sidebar-icon-btn ml-auto"
+            title={Object.values(expandedProjects).every(Boolean) ? '收起全部' : '展开全部'}
+          >
+            <FoldAllIcon collapsed={Object.values(expandedProjects).every(Boolean)} className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 
@@ -828,6 +844,25 @@ function PinIcon({ className = 'w-3 h-3', pinned = false }: { className?: string
   return (
     <svg className={className} fill={pinned ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 17v5m-3-3h6M5 12l7-7 7 7" />
+    </svg>
+  );
+}
+
+function FoldAllIcon({ className = 'w-4 h-4', collapsed = false }: { className?: string; collapsed?: boolean }) {
+  if (collapsed) {
+    // 折叠图标（全部收起）
+    return (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M5 15l7-7 7 7" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M5 19l7-7 7 7" />
+      </svg>
+    );
+  }
+  // 展开图标
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M19 9l-7 7-7-7" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M19 3l-7 7-7-7" />
     </svg>
   );
 }
