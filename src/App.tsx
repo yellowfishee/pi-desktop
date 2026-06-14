@@ -8,6 +8,7 @@ import PropertiesPanel from './components/panels/PropertiesPanel';
 import ChangesPanel from './components/panels/ChangesPanel';
 import SettingsPanel from './components/panels/SettingsPanel';
 import NotificationStack from './components/shared/NotificationStack';
+import ExtensionDialogModal from './components/shared/ExtensionDialogModal';
 import { ConfirmProvider } from './components/shared/Confirm';
 
 function App() {
@@ -184,6 +185,7 @@ function App() {
 
       <NotificationStack />
       <SettingsPanel />
+      <ExtensionDialogModal />
     </div>
     </ConfirmProvider>
   );
