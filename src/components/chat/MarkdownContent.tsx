@@ -19,22 +19,36 @@ function MarkdownContent({ text, isStreaming }: Props) {
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
         components={{
-          pre: ({ children, ...props }) => (
-            <div className="relative group code-block-container my-3 overflow-hidden">
-              {extractLang(children) && (
-                <div className="absolute top-0 left-0 z-10 rounded-tl-lg rounded-br-md bg-gray-700/80 dark:bg-gray-600/80 px-2.5 py-0.5 text-[10px] font-mono font-medium text-gray-300 uppercase tracking-wider">
-                  {extractLang(children)}
+          pre: ({ children, ...props }) => {
+            const lang = extractLang(children);
+            const codeText = extractText(children);
+            const lineCount = codeText.split('\n').length;
+            const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1);
+
+            return (
+              <div className="relative group my-3">
+                {lang && (
+                  <div className="absolute top-0 left-0 z-10 rounded-tl-lg rounded-br-md bg-[var(--raised-bg)] border-b border-r border-[var(--border-color)] px-2.5 py-0.5 text-[10px] font-mono font-medium text-[var(--fg-muted)] uppercase tracking-wider">
+                    {lang}
+                  </div>
+                )}
+                <CodeCopyButton text={codeText} />
+                <div className="code-block-wrapper">
+                  <div className="code-line-numbers" aria-hidden="true">
+                    {lineNumbers.map((n) => (
+                      <span key={n}>{n}</span>
+                    ))}
+                  </div>
+                  <pre
+                    {...props}
+                    className="!bg-[var(--surface-bg)] dark:!bg-[var(--surface-bg)] rounded-none p-4 pt-8 overflow-x-auto my-0 text-xs leading-relaxed font-mono text-[var(--fg-color)]"
+                  >
+                    {children}
+                  </pre>
                 </div>
-              )}
-              <CodeCopyButton text={extractText(children)} />
-              <pre
-                {...props}
-                className="!bg-[var(--surface-bg)] dark:!bg-[var(--surface-bg)] rounded-lg p-4 pt-8 overflow-x-auto my-0 border border-[var(--border-color)] text-xs leading-relaxed font-mono text-[var(--fg-color)]"
-              >
-                {children}
-              </pre>
-            </div>
-          ),
+              </div>
+            );
+          },
           code: ({ className, children, ...props }) => {
             const isInline = !className;
             if (isInline) {
@@ -180,9 +194,13 @@ function hasCjk(value: string) {
 }
 
 function CodeCopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch {
       // fallback
     }
@@ -194,10 +212,21 @@ function CodeCopyButton({ text }: { text: string }) {
       className="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-md bg-gray-600/50 dark:bg-gray-500/30 px-2 py-1 text-[10px] text-gray-300 opacity-0 transition-all hover:bg-gray-500/70 hover:text-white group-hover:opacity-100"
       title="复制代码"
     >
-      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-      </svg>
-      复制
+      {copied ? (
+        <>
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          已复制
+        </>
+      ) : (
+        <>
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          复制
+        </>
+      )}
     </button>
   );
 }
