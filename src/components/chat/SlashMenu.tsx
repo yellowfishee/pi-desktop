@@ -1,17 +1,17 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { sendCommand } from '../../services/tauri';
 
-type CommandItem = { name: string; description: string; icon: string };
+type CommandItem = { name: string; description: string };
 
 const BUILTIN: CommandItem[] = [
-  { name: '/compact', description: '压缩上下文', icon: '📦' },
-  { name: '/fork', description: '从当前分叉', icon: '🔀' },
-  { name: '/clone', description: '克隆会话', icon: '📋' },
-  { name: '/model', description: '切换模型', icon: '🧠' },
-  { name: '/thinking', description: '切换思考深度', icon: '💭' },
-  { name: '/new', description: '新建会话', icon: '✨' },
-  { name: '/export', description: '导出 HTML', icon: '📄' },
-  { name: '/help', description: '显示帮助', icon: '❓' },
+  { name: '/compact', description: '压缩上下文' },
+  { name: '/fork', description: '从当前分叉' },
+  { name: '/clone', description: '克隆会话' },
+  { name: '/model', description: '切换模型' },
+  { name: '/thinking', description: '切换思考深度' },
+  { name: '/new', description: '新建会话' },
+  { name: '/export', description: '导出 HTML' },
+  { name: '/help', description: '显示帮助' },
 ];
 
 interface Props {
@@ -37,7 +37,6 @@ export default function SlashMenu({ visible, query, onSelect, onClose, textareaR
             cmds.map((c: any) => ({
               name: c.name || c.command || '',
               description: c.description || '',
-              icon: c.icon || '🔧',
             })),
           );
         }
@@ -138,9 +137,8 @@ export default function SlashMenu({ visible, query, onSelect, onClose, textareaR
                   : 'text-[var(--fg-color)] hover:bg-[var(--hover-bg)]'
               }`}
             >
-              <span className="text-base">{cmd.icon}</span>
-              <span className="text-sm font-mono font-medium">{cmd.name}</span>
-              <span className={`flex-1 text-xs ${i === selectedIndex ? 'opacity-80' : 'text-[var(--fg-muted)]'}`}>
+              <span className="text-xs font-mono font-medium">{cmd.name}</span>
+              <span className={`flex-1 text-[10px] ${i === selectedIndex ? 'opacity-70' : 'opacity-50'}`}>
                 {cmd.description}
               </span>
             </button>

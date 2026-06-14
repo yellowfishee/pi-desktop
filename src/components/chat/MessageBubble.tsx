@@ -462,8 +462,8 @@ function AssistantBubble({ message }: Props) {
             >
               {copied ? '已复制' : '复制'}
             </button>
-            <FeedbackBtn label="👍" onClick={() => {}} />
-            <FeedbackBtn label="👎" onClick={() => {}} />
+            <FeedbackBtn label="有用" activeLabel="已反馈" onClick={() => {}} />
+            <FeedbackBtn label="无用" activeLabel="已反馈" onClick={() => {}} />
           </div>
         )}
 
@@ -563,7 +563,7 @@ function BashBubble({ message }: Props) {
   );
 }
 
-function FeedbackBtn({ label, onClick }: { label: string; onClick: () => void }) {
+function FeedbackBtn({ label, activeLabel, onClick }: { label: string; activeLabel: string; onClick: () => void }) {
   const [active, setActive] = useState(false);
   const handleClick = () => {
     setActive(true);
@@ -573,12 +573,11 @@ function FeedbackBtn({ label, onClick }: { label: string; onClick: () => void })
   return (
     <button
       onClick={handleClick}
-      className={`rounded-md px-1.5 py-0.5 text-xs transition-all ${
-        active ? 'scale-125' : ''
-      } hover:bg-[var(--hover-bg)]`}
-      title={label === '👍' ? '有帮助' : '需要改进'}
+      className={`rounded-md px-1.5 py-0.5 text-[10px] transition-colors ${
+        active ? 'text-[var(--accent)]' : 'text-[var(--fg-subtle)]'
+      } hover:text-[var(--fg-color)] hover:bg-[var(--hover-bg)]`}
     >
-      {label}
+      {active ? activeLabel : label}
     </button>
   );
 }
