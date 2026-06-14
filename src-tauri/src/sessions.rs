@@ -15,6 +15,7 @@ pub struct SessionMeta {
     pub message_count: Option<usize>,
     pub cwd: Option<String>,
     pub pinned: Option<bool>,
+    pub parent_session_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -104,7 +105,7 @@ fn scan_projects_uncached() -> Vec<ProjectMeta> {
             })
             .unwrap_or_default();
 
-        let (session_name, pinned) = read_session_info(&path);
+        let (session_name, pinned, parent_id) = read_session_info(&path);
 
         projects
             .entry((project_name, dir_name))
@@ -117,6 +118,7 @@ fn scan_projects_uncached() -> Vec<ProjectMeta> {
                 message_count: None,
                 cwd: None,
                 pinned,
+                parent_session_id: parent_id,
             });
     }
 
@@ -142,11 +144,11 @@ fn scan_projects_uncached() -> Vec<ProjectMeta> {
     result
 }
 
-/// 从 session 文件中提取名称和 pinned 状态：session_info > 首条用户消息
-fn read_session_info(path: &std::path::Path) -> (Option<String>, Option<bool>) {
+/// 从 session 文件中提取名称、pinned 状态、父会话 ID
+fn read_session_info(path: &std::path::Path) -> (Option<String>, Option<bool>, Option<String>) {
     let file = match std::fs::File::open(path) {
         Ok(f) => f,
-        Err(_) => return (None, None),
+        Err(_) => return (None, None, None),
     };
     let reader = std::io::BufReader::new(file);
     let mut first_user_msg: Option<String> = None;
@@ -168,7 +170,11 @@ fn read_session_info(path: &std::path::Path) -> (Option<String>, Option<bool>) {
                 .and_then(|n| n.as_str())
                 .map(|s| s.to_string());
             let pinned = val.get("pinned").and_then(|p| p.as_bool());
-            return (name, pinned);
+            let parent = val
+                .get("parent_session_id")
+                .and_then(|p| p.as_str())
+                .map(|s| s.to_string());
+            return (name, pinned, parent);
         }
 
         if first_user_msg.is_none() && entry_type == Some("message") {
@@ -190,7 +196,7 @@ fn read_session_info(path: &std::path::Path) -> (Option<String>, Option<bool>) {
         }
     }
 
-    (first_user_msg, None)
+    (first_user_msg, None, None)
 }
 
 fn extract_text(content: &Value) -> String {
