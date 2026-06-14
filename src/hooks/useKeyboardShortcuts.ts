@@ -59,6 +59,14 @@ export function useKeyboardShortcuts() {
 
     // Cmd/Ctrl + P: 命令面板（由 CommandPalette 组件处理，不在此拦截）
 
+    // Cmd/Ctrl + Shift + N: 新建窗口
+    if (mod && e.shiftKey && e.key === 'N') {
+      e.preventDefault();
+      import('@tauri-apps/api/core').then(({ invoke }) => {
+        invoke('open_new_window').catch(console.error);
+      });
+    }
+
     // Cmd/Ctrl + Shift + ↑: 跳转到上一条用户消息
     if (mod && e.shiftKey && e.key === 'ArrowUp') {
       e.preventDefault();
