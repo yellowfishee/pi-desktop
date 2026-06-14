@@ -41,6 +41,7 @@ pub struct AppState {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let pending_commands = Arc::new(Mutex::new(HashMap::new()));
 

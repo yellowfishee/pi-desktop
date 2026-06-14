@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useUIStore, applyFontFamily, applyFontSize } from './stores/uiStore';
 import { setupEventListeners, initializeApp, getAppConfig } from './services/tauri';
 import TitleBar from './components/layout/TitleBar';
@@ -8,7 +8,6 @@ import PropertiesPanel from './components/panels/PropertiesPanel';
 import ChangesPanel from './components/panels/ChangesPanel';
 import SettingsPanel from './components/panels/SettingsPanel';
 import NotificationStack from './components/shared/NotificationStack';
-import WelcomeScreen from './components/screens/WelcomeScreen';
 import { ConfirmProvider } from './components/shared/Confirm';
 
 function App() {
@@ -24,6 +23,9 @@ function App() {
   const propertiesWidth = useUIStore((s) => s.propertiesWidth);
   const setSidebarWidth = useUIStore((s) => s.setSidebarWidth);
   const setPropertiesWidth = useUIStore((s) => s.setPropertiesWidth);
+  const settingsOpen = useUIStore((s) => s.settingsOpen);
+  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
+  const didAutoOpenSettings = useRef(false);
 
   const startResize = (side: 'sidebar' | 'review' | 'changes', event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -79,6 +81,9 @@ function App() {
         if (typeof config.sidebar_width === 'number') {
           useUIStore.setState({ sidebarWidth: config.sidebar_width });
         }
+        if (config.pi_path) {
+          store.setPiPath(config.pi_path);
+        }
       } catch (e) {
         console.error('[config] 加载失败:', e);
         // 使用默认值
@@ -101,17 +106,20 @@ function App() {
     };
   }, []);
 
-  // 首次启动且 pi 不可用 → 显示安装引导
-  if (piCheckDone && (!piAvailable || !bashAvailable)) {
-    return <WelcomeScreen />;
-  }
+  // 首次启动且 pi 不可用 → 自动打开设置面板
+  useEffect(() => {
+    if (piCheckDone && (!piAvailable || !bashAvailable) && !settingsOpen && !didAutoOpenSettings.current) {
+      didAutoOpenSettings.current = true;
+      setSettingsOpen(true);
+    }
+  }, [piCheckDone, piAvailable, bashAvailable, settingsOpen, setSettingsOpen]);
 
   return (
     <ConfirmProvider>
-    <div className="h-full flex flex-col bg-white dark:bg-surface-dark">
+    <div className="h-full flex flex-col bg-[var(--app-bg)] text-[var(--fg-color)]">
       <TitleBar />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="h-full flex flex-1 overflow-hidden bg-[var(--app-bg)]">
         {/* 侧边栏 */}
         <div
           className="flex-shrink-0 overflow-hidden"
@@ -123,10 +131,10 @@ function App() {
         {!sidebarCollapsed && (
           <div
             onMouseDown={(event) => startResize('sidebar', event)}
-            className="group relative w-1 flex-shrink-0 cursor-col-resize bg-transparent"
+            className="resize-handle"
             title="调整侧边栏宽度"
           >
-            <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-gray-200 transition-colors group-hover:bg-gray-400 dark:bg-gray-700 dark:group-hover:bg-gray-500" />
+            <div className="resize-handle-line" />
           </div>
         )}
 
@@ -140,13 +148,13 @@ function App() {
           <>
           <div
             onMouseDown={(event) => startResize('review', event)}
-            className="group relative w-1 flex-shrink-0 cursor-col-resize bg-transparent"
+            className="resize-handle"
             title="调整 Review 面板宽度"
           >
-            <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-gray-200 transition-colors group-hover:bg-gray-400 dark:bg-gray-700 dark:group-hover:bg-gray-500" />
+            <div className="resize-handle-line" />
           </div>
           <div
-            className="flex-shrink-0 overflow-hidden border-l border-gray-200 dark:border-gray-700"
+            className="flex-shrink-0 overflow-hidden border-l border-[var(--border-color)]"
             style={{ width: propertiesWidth }}
           >
             <PropertiesPanel />
@@ -159,10 +167,10 @@ function App() {
           <>
           <div
             onMouseDown={(event) => startResize('changes', event)}
-            className="group relative w-1 flex-shrink-0 cursor-col-resize bg-transparent"
+            className="resize-handle"
             title="调整变更面板宽度"
           >
-            <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-gray-200 transition-colors group-hover:bg-gray-400 dark:bg-gray-700 dark:group-hover:bg-gray-500" />
+            <div className="resize-handle-line" />
           </div>
           <div
             className="flex-shrink-0 overflow-hidden"

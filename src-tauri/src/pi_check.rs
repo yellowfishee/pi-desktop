@@ -13,7 +13,7 @@ pub struct PiCheckResult {
     pub errors: Vec<String>,
 }
 
-pub fn find_pi() -> PiCheckResult {
+pub fn find_pi_with_path(preferred_path: Option<&str>) -> PiCheckResult {
     let mut result = PiCheckResult {
         pi_available: false,
         pi_path: None,
@@ -24,7 +24,7 @@ pub fn find_pi() -> PiCheckResult {
     };
 
     check_bash(&mut result);
-    check_pi(&mut result);
+    check_pi(&mut result, preferred_path);
 
     result
 }
@@ -49,7 +49,14 @@ fn check_bash(result: &mut PiCheckResult) {
             }
         }
 
-        if let Ok(output) = Command::new("where").arg("bash").output() {
+        let mut where_cmd = Command::new("where");
+        where_cmd.arg("bash");
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            where_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+        if let Ok(output) = where_cmd.output() {
             if output.status.success() {
                 let path = String::from_utf8_lossy(&output.stdout)
                     .lines()
@@ -90,51 +97,126 @@ fn check_bash(result: &mut PiCheckResult) {
     }
 }
 
-fn check_pi(result: &mut PiCheckResult) {
+fn check_pi(result: &mut PiCheckResult, preferred_path: Option<&str>) {
     debug_log("=== check_pi started ===");
 
+    // 1. 先检查本次调用传入的路径，设置页检测时不依赖异步配置保存
+    if let Some(path) = normalize_candidate_path(preferred_path) {
+        debug_log(&format!("preferred pi_path: {}", path));
+        if try_pi_command(&path, result, &path, "preferred") {
+            return;
+        }
+    }
+
+    // 2. 检查配置文件中是否有自定义路径
+    let config_path = get_config_pi_path();
+    debug_log(&format!("config pi_path: {:?}", config_path));
+
+    if let Some(ref path) = config_path {
+        if try_pi_command(path, result, path, "config") {
+            return;
+        }
+    }
+
+    // 3. 自动查找
+    let found_path = find_pi_path();
+    debug_log(&format!("found_path: {:?}", found_path));
+
+    if let Some(ref p) = found_path {
+        if try_pi_command(p, result, p, "auto-detect") {
+            return;
+        }
+    }
+
+    // 4. 尝试 PATH 中的命令
     let pi_candidates: &[&str] = if cfg!(target_os = "windows") {
         &["pi", "pi.cmd", "pi.exe"]
     } else {
         &["pi"]
     };
 
-    let found_path = find_pi_path();
-    debug_log(&format!("found_path: {:?}", found_path));
-
     for cmd in pi_candidates {
-        let mut command = if let Some(ref p) = found_path {
-            Command::new(p)
-        } else {
-            Command::new(cmd)
-        };
-        command.arg("--version");
-
-        debug_log(&format!("trying command: {:?}", command));
-        match command.output() {
-            Ok(output) => {
-                debug_log(&format!("status: {}, stdout: {:?}, stderr: {:?}",
-                    output.status,
-                    String::from_utf8_lossy(&output.stdout),
-                    String::from_utf8_lossy(&output.stderr)
-                ));
-                if output.status.success() {
-                    result.pi_available = true;
-                    result.pi_version =
-                        Some(String::from_utf8_lossy(&output.stdout).trim().to_string());
-                    result.pi_path = found_path.or_else(|| Some(cmd.to_string()));
-                    debug_log("pi found successfully!");
-                    return;
-                }
-            }
-            Err(e) => {
-                debug_log(&format!("command error: {}", e));
-                result.errors.push(format!("执行 {} 失败: {}", cmd, e));
-            }
-            _ => continue,
+        if try_pi_command(cmd, result, cmd, "PATH") {
+            return;
         }
     }
     debug_log("pi not available after all attempts");
+}
+
+fn normalize_candidate_path(path: Option<&str>) -> Option<String> {
+    let trimmed = path?.trim().trim_matches('"').trim_matches('\'').to_string();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
+}
+
+pub fn try_pi_command(command_path: &str, result: &mut PiCheckResult, reported_path: &str, source: &str) -> bool {
+    if command_path.contains(std::path::MAIN_SEPARATOR) || command_path.contains('/') || command_path.contains('\\') {
+        let path_obj = std::path::Path::new(command_path);
+        if !path_obj.exists() {
+            result.errors.push(format!("pi 路径不存在: {}", command_path));
+            return false;
+        }
+    }
+
+    let mut command = Command::new(command_path);
+    command.arg("--version");
+
+    // Windows: 隐藏控制台窗口
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+
+    debug_log(&format!("trying {} path: {:?}", source, command));
+
+    match command.output() {
+        Ok(output) => {
+            debug_log(&format!("status: {}, stdout: {:?}, stderr: {:?}",
+                output.status,
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            ));
+            if output.status.success() {
+                result.pi_available = true;
+                result.pi_version = Some(String::from_utf8_lossy(&output.stdout).trim().to_string());
+                result.pi_path = Some(reported_path.to_string());
+                debug_log(&format!("pi found via {}!", source));
+                true
+            } else {
+                result.errors.push(format!(
+                    "{} --version 退出码异常: {} {}",
+                    command_path,
+                    output.status,
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ));
+                false
+            }
+        }
+        Err(e) => {
+            debug_log(&format!("command error: {}", e));
+            result.errors.push(format!("执行 {} 失败: {}", command_path, e));
+            false
+        }
+    }
+}
+
+fn get_config_pi_path() -> Option<String> {
+    let config_path = dirs::config_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("pi-desktop")
+        .join("config.json");
+
+    if !config_path.exists() {
+        return None;
+    }
+
+    let content = std::fs::read_to_string(&config_path).ok()?;
+    let config: serde_json::Value = serde_json::from_str(&content).ok()?;
+    config.get("pi_path")?.as_str().map(|s| s.to_string())
 }
 
 fn debug_log(msg: &str) {
@@ -158,9 +240,57 @@ fn debug_log(msg: &str) {
 fn find_pi_path() -> Option<String> {
     debug_log("=== find_pi_path started ===");
 
-    // 1. 尝试 where/which
+    // Windows: 检查常见安装路径
+    #[cfg(target_os = "windows")]
+    {
+        let home = dirs::home_dir().unwrap_or_default();
+        debug_log(&format!("home dir: {:?}", home));
+
+        // 构建候选路径列表（优先查找真正的可执行文件，跳过 shim）
+        let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+
+        // SCOOP 环境变量（优先查找 apps 目录下的真实路径）
+        if let Ok(scoop_dir) = std::env::var("SCOOP") {
+            debug_log(&format!("SCOOP env: {}", scoop_dir));
+            let scoop_path = std::path::PathBuf::from(&scoop_dir);
+            candidates.push(scoop_path.join("apps").join("pi-coding-agent").join("current").join("pi.exe"));
+            candidates.push(scoop_path.join("apps").join("pi").join("current").join("pi.exe"));
+        } else {
+            debug_log("SCOOP env not set");
+        }
+
+        // 默认 scoop 路径（优先查找 apps 目录下的真实路径）
+        candidates.push(home.join("scoop").join("apps").join("pi-coding-agent").join("current").join("pi.exe"));
+        candidates.push(home.join("scoop").join("apps").join("pi").join("current").join("pi.exe"));
+
+        // npm global
+        candidates.push(home.join("AppData").join("Roaming").join("npm").join("pi.cmd"));
+        candidates.push(home.join("AppData").join("Roaming").join("npm").join("pi.exe"));
+
+        // 最后才尝试 shim（可能在 Tauri 打包后无法正常工作）
+        if let Ok(scoop_dir) = std::env::var("SCOOP") {
+            let scoop_path = std::path::PathBuf::from(&scoop_dir);
+            candidates.push(scoop_path.join("shims").join("pi.exe"));
+        }
+        candidates.push(home.join("scoop").join("shims").join("pi.exe"));
+
+        for path in &candidates {
+            debug_log(&format!("checking: {:?} exists={}", path, path.exists()));
+            if path.exists() {
+                return Some(path.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    // 2. 尝试 where/which
     let cmd = if cfg!(target_os = "windows") {
-        Command::new("where").arg("pi").output()
+        let mut where_cmd = Command::new("where");
+        where_cmd.arg("pi");
+        {
+            use std::os::windows::process::CommandExt;
+            where_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+        where_cmd.output()
     } else {
         Command::new("which").arg("pi").output()
     };
@@ -179,52 +309,5 @@ fn find_pi_path() -> Option<String> {
 
     debug_log(&format!("from_where: {:?}", from_where));
 
-    if from_where.is_some() {
-        return from_where;
-    }
-
-    // 2. Windows: 检查常见安装路径
-    #[cfg(target_os = "windows")]
-    {
-        let home = dirs::home_dir().unwrap_or_default();
-        debug_log(&format!("home dir: {:?}", home));
-
-        let candidates = vec![
-            // Scoop shims
-            home.join("scoop/shims/pi.exe"),
-            // Scoop apps
-            home.join("scoop/apps/pi/current/pi.exe"),
-            // npm global
-            home.join("AppData/Roaming/npm/pi.cmd"),
-            home.join("AppData/Roaming/npm/pi.exe"),
-        ];
-
-        // 也检查 SCOOP 环境变量
-        if let Ok(scoop_dir) = std::env::var("SCOOP") {
-            debug_log(&format!("SCOOP env: {}", scoop_dir));
-            let scoop_path = std::path::PathBuf::from(&scoop_dir);
-            let mut extra = vec![
-                scoop_path.join("shims/pi.exe"),
-                scoop_path.join("apps/pi/current/pi.exe"),
-            ];
-            extra.extend(candidates);
-            for p in &extra {
-                debug_log(&format!("checking: {:?} exists={}", p, p.exists()));
-                if p.exists() {
-                    return Some(p.to_string_lossy().to_string());
-                }
-            }
-        } else {
-            debug_log("SCOOP env not set");
-            for p in &candidates {
-                debug_log(&format!("checking: {:?} exists={}", p, p.exists()));
-                if p.exists() {
-                    return Some(p.to_string_lossy().to_string());
-                }
-            }
-        }
-    }
-
-    debug_log("pi not found");
-    None
+    from_where
 }

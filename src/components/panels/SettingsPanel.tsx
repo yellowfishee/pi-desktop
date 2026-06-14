@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useUIStore } from '../../stores/uiStore';
-import { sendCommand } from '../../services/tauri';
+import { sendCommand, startPi, checkPiAvailable, listSessions } from '../../services/tauri';
+import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 
-type SettingsTab = 'agent' | 'appearance' | 'shortcuts';
+type SettingsTab = 'environment' | 'agent' | 'appearance' | 'shortcuts';
 
 export default function SettingsPanel() {
   const open = useUIStore((s) => s.settingsOpen);
@@ -16,13 +17,27 @@ export default function SettingsPanel() {
   const setFontSize = useUIStore((s) => s.setFontSize);
   const saveConfig = useUIStore((s) => s.saveConfig);
 
+  const piAvailable = useUIStore((s) => s.piAvailable);
+  const bashAvailable = useUIStore((s) => s.bashAvailable);
+  const piPath = useUIStore((s) => s.piPath);
+  const setPiPath = useUIStore((s) => s.setPiPath);
+  const setPiCheckResult = useUIStore((s) => s.setPiCheckResult);
+
   const model = useSessionStore((s) => s.model);
   const availableModels = useSessionStore((s) => s.availableModels);
   const thinkingLevel = useSessionStore((s) => s.thinkingLevel);
   const loadModels = useSessionStore((s) => s.loadModels);
   const switchModel = useSessionStore((s) => s.switchModel);
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>('agent');
+  const [activeTab, setActiveTab] = useState<SettingsTab>(
+    !piAvailable || !bashAvailable ? 'environment' : 'agent'
+  );
+  const [piPathInput, setPiPathInput] = useState(piPath || '');
+  const [checkingPi, setCheckingPi] = useState(false);
+
+  useEffect(() => {
+    setPiPathInput(piPath || '');
+  }, [piPath]);
 
   // ESC 关闭
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -61,20 +76,21 @@ export default function SettingsPanel() {
   };
 
   const tabs: { key: SettingsTab; label: string }[] = [
+    { key: 'environment', label: '环境' },
     { key: 'agent', label: '智能体' },
     { key: 'appearance', label: '外观' },
     { key: 'shortcuts', label: '快捷键' },
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-6 backdrop-blur-sm" onClick={handleClose}>
-      <div className="flex h-[min(680px,90vh)] w-[min(860px,92vw)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-950" onClick={(e) => e.stopPropagation()}>
-        <div className="w-52 flex-shrink-0 border-r border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-6 backdrop-blur-sm animate-fade-in" onClick={handleClose}>
+      <div className="flex h-[min(680px,90vh)] w-[min(860px,92vw)] overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--surface-bg)] shadow-2xl animate-scale-in" onClick={(e) => e.stopPropagation()}>
+        <div className="w-52 flex-shrink-0 border-r border-[var(--border-color)] bg-[var(--sidebar-bg)] p-3">
           <div className="mb-4 flex items-center justify-between">
-            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">设置</div>
+            <div className="text-sm font-semibold text-[var(--fg-color)]">设置</div>
             <button
               onClick={handleClose}
-              className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+              className="rounded-md p-1 text-[var(--fg-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)]"
               title="关闭设置"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -89,8 +105,8 @@ export default function SettingsPanel() {
                 onClick={() => setActiveTab(tab.key)}
                 className={`w-full text-left rounded-md px-2 py-1.5 transition-colors ${
                   activeTab === tab.key
-                    ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-gray-100'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                    ? 'bg-[var(--active-bg)] text-[var(--fg-color)]'
+                    : 'text-[var(--fg-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)]'
                 }`}
               >
                 {tab.label}
@@ -99,7 +115,108 @@ export default function SettingsPanel() {
           </nav>
         </div>
 
-        <div className="min-w-0 flex-1 overflow-y-auto p-5">
+        <div className="min-w-0 flex-1 overflow-y-auto bg-[var(--panel-bg)] p-5">
+          {activeTab === 'environment' && (
+            <Section title="环境" description="配置 pi CLI 路径">
+              <Field label="pi 路径">
+                <div className="flex gap-2">
+                  <input
+                    value={piPathInput}
+                    onChange={(e) => setPiPathInput(e.target.value)}
+                    placeholder="留空则自动检测，或输入完整路径"
+                    className="input flex-1 px-2 py-1.5 text-xs"
+                  />
+                  <button
+                    onClick={async () => {
+                      try {
+                        const selected = await openFileDialog({
+                          multiple: false,
+                          filters: [{
+                            name: '可执行文件',
+                            extensions: ['exe', 'cmd', 'bat', 'sh']
+                          }]
+                        });
+                        if (selected) {
+                          const selectedPath = Array.isArray(selected) ? selected[0] : selected;
+                          setPiPathInput(selectedPath);
+                          setPiPath(selectedPath);
+                        }
+                      } catch (e) {
+                        console.error('File dialog failed:', e);
+                      }
+                    }}
+                    className="rounded-md border border-[var(--border-color)] bg-[var(--surface-bg)] px-2 py-1.5 text-xs text-[var(--fg-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)]"
+                  >
+                    浏览
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const path= piPathInput.trim() || undefined;
+                      setCheckingPi(true);
+                      setPiPath(path || '');
+                      try {
+                        const result = await checkPiAvailable(path);
+                        setPiCheckResult(
+                          result.pi_available,
+                          result.bash_available,
+                          result.pi_version,
+                          result.pi_path || path
+                        );
+                        if (result.pi_available) {
+                          await startPi();
+                          useUIStore.getState().setPiRunning(true);
+                          // pi 首次启动后需要执行完整初始化
+                          try {
+                            const [projectsResult, _modelsResult, stateResult] = await Promise.allSettled([
+                              listSessions(),
+                              useSessionStore.getState().loadModels(),
+                              sendCommand({ type: 'get_state' }),
+                            ]);
+                            if (projectsResult.status === 'fulfilled') {
+                              useSessionStore.getState().setSessions(projectsResult.value);
+                            }
+                            if (stateResult.status === 'fulfilled' && stateResult.value.success && stateResult.value.data) {
+                              const data = stateResult.value.data as any;
+                              useSessionStore.getState().updateState({
+                                model: data.model,
+                                thinkingLevel: data.thinkingLevel || 'medium',
+                                isStreaming: data.isStreaming || false,
+                                isCompacting: data.isCompacting || false,
+                                sessionName: data.sessionName,
+                                messageCount: data.messageCount || 0,
+                                pendingMessageCount: data.pendingMessageCount || 0,
+                              } as any);
+                              if (data.sessionId) {
+                                useSessionStore.getState().setActiveSession(data.sessionId, data.sessionFile || '');
+                              }
+                            }
+                          } catch (initErr) {
+                            console.error('[settings] post-start init failed:', initErr);
+                          }
+                        }
+                      } catch (e) {
+                        console.error('Pi check failed:', e);
+                      } finally {
+                        setCheckingPi(false);
+                      }
+                    }}
+                    disabled={checkingPi}
+                    className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs text-white font-medium hover:opacity-90 disabled:opacity-60 transition-all"
+                  >
+                    {checkingPi ? '检测中...' : '检测'}
+                  </button>
+                </div>
+              </Field>
+
+              <Field label="状态">
+                <div className="space-y-1">
+                  <StatusItem label="pi" available={piAvailable} />
+                  <StatusItem label="bash" available={bashAvailable} />
+                </div>
+              </Field>
+            </Section>
+          )}
+
           {activeTab === 'agent' && (
             <Section title="智能体" description="当前会话的模型与推理控制">
               <Field label="模型">
@@ -107,7 +224,7 @@ export default function SettingsPanel() {
                   <select
                     value={model ? `${model.provider}:${model.id}` : ''}
                     onChange={handleModelChange}
-                    className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs focus:border-gray-400 focus:outline-none dark:border-gray-700 dark:bg-gray-900"
+                    className="w-full rounded-md border border-[var(--border-color)] bg-[var(--surface-bg)] px-2 py-1.5 text-xs text-[var(--fg-color)] focus:border-[var(--border-hover)] focus:outline-none focus:shadow-[0_0_0_2px_var(--accent-soft)]"
                   >
                     {availableModels.map((m) => (
                       <option key={`${m.provider}:${m.id}`} value={`${m.provider}:${m.id}`}>
@@ -116,7 +233,7 @@ export default function SettingsPanel() {
                     ))}
                   </select>
                 ) : (
-                  <div className="rounded-md border border-gray-200 px-2 py-1.5 text-xs text-gray-400 dark:border-gray-700">
+                  <div className="rounded-md border border-[var(--border-color)] px-2 py-1.5 text-xs text-[var(--fg-muted)]">
                     {model?.name || '加载中...'}
                   </div>
                 )}
@@ -128,10 +245,10 @@ export default function SettingsPanel() {
                     <button
                       key={level}
                       onClick={() => handleThinkingChange(level)}
-                      className={`rounded-md px-2 py-1 text-xxs transition-colors ${
+                      className={`rounded-md px-2 py-1 text-xxs transition-all ${
                         thinkingLevel === level
-                          ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
+                          ? 'bg-[var(--accent)] text-white shadow-sm'
+                          : 'bg-[var(--raised-bg)] text-[var(--fg-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)]'
                       }`}
                     >
                       {level}
@@ -154,10 +271,10 @@ export default function SettingsPanel() {
                     <button
                       key={value}
                       onClick={() => setTheme(value)}
-                      className={`rounded-md px-2 py-1.5 text-xs transition-colors ${
+                      className={`rounded-md px-2 py-1.5 text-xs transition-all ${
                         theme === value
-                          ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
+                          ? 'bg-[var(--accent)] text-white shadow-sm'
+                          : 'bg-[var(--raised-bg)] text-[var(--fg-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)]'
                       }`}
                     >
                       {label}
@@ -177,18 +294,18 @@ export default function SettingsPanel() {
                     min={10} max={28}
                     value={parsePx(fontSize)}
                     onChange={(e) => setFontSize(`${Math.max(10, Math.min(28, parseInt(e.target.value) || 14))}px`)}
-                    className="w-16 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-center focus:border-gray-400 focus:outline-none dark:border-gray-700 dark:bg-gray-900 [appearance:textfield]"
+                    className="w-16 rounded-md border border-[var(--border-color)] bg-[var(--surface-bg)] px-2 py-1.5 text-xs text-center text-[var(--fg-color)] focus:border-[var(--border-hover)] focus:outline-none focus:shadow-[0_0_0_2px_var(--accent-soft)] [appearance:textfield]"
                   />
-                  <span className="text-xs text-gray-400">px</span>
+                  <span className="text-xs text-[var(--fg-subtle)]">px</span>
                   <div className="flex gap-1 ml-2">
                     {[12, 14, 16, 18, 20].map((n) => (
                       <button
                         key={n}
                         onClick={() => setFontSize(`${n}px`)}
-                        className={`px-2 py-1 rounded text-[10px] font-medium transition ${
+                        className={`px-2 py-1 rounded text-[10px] font-medium transition-all ${
                           parsePx(fontSize) === n
-                            ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400'
+                            ? 'bg-[var(--accent)] text-white shadow-sm'
+                            : 'bg-[var(--raised-bg)] text-[var(--fg-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)]'
                         }`}
                       >
                         {n}
@@ -218,8 +335,8 @@ export default function SettingsPanel() {
 function Section({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
     <section className="mb-7">
-      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
-      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{description}</p>
+      <h3 className="text-sm font-semibold text-[var(--fg-color)]">{title}</h3>
+      <p className="mt-1 text-xs text-[var(--fg-subtle)]">{description}</p>
       <div className="mt-4 space-y-4">{children}</div>
     </section>
   );
@@ -228,7 +345,7 @@ function Section({ title, description, children }: { title: string; description:
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="grid gap-2 text-xs sm:grid-cols-[160px_minmax(0,1fr)]">
-      <span className="pt-1 font-medium text-gray-700 dark:text-gray-300">{label}</span>
+      <span className="pt-1 font-medium text-[var(--fg-muted)]">{label}</span>
       <div>{children}</div>
     </label>
   );
@@ -245,16 +362,25 @@ function TextInput({ value, onChange, placeholder }: { value: string; onChange: 
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className="w-full max-w-md rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs focus:border-gray-400 focus:outline-none dark:border-gray-700 dark:bg-gray-900"
+      className="w-full max-w-md rounded-md border border-[var(--border-color)] bg-[var(--surface-bg)] px-2 py-1.5 text-xs text-[var(--fg-color)] placeholder:text-[var(--fg-subtle)] focus:border-[var(--border-hover)] focus:outline-none focus:shadow-[0_0_0_2px_var(--accent-soft)]"
     />
   );
 }
 
 function Shortcut({ keys, label }: { keys: string; label: string }) {
   return (
-    <div className="flex items-center justify-between rounded-md border border-gray-200 px-2 py-1.5 dark:border-gray-700">
-      <span className="text-gray-600 dark:text-gray-400">{label}</span>
-      <kbd className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xxs text-gray-600 dark:bg-gray-800 dark:text-gray-300">{keys}</kbd>
+    <div className="flex items-center justify-between rounded-md border border-[var(--border-color)] px-2 py-1.5">
+      <span className="text-[var(--fg-muted)]">{label}</span>
+      <kbd className="rounded bg-[var(--raised-bg)] px-1.5 py-0.5 font-mono text-xxs text-[var(--fg-muted)]">{keys}</kbd>
+    </div>
+  );
+}
+
+function StatusItem({ label, available }: { label: string; available: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`h-2 w-2 rounded-full ${available ? 'bg-green-500' : 'bg-red-500'}`} />
+      <span className="text-xs text-[var(--fg-muted)]">{label}</span>
     </div>
   );
 }

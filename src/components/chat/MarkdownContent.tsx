@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -10,24 +10,17 @@ interface Props {
 }
 
 function MarkdownContent({ text, isStreaming }: Props) {
-  const displayText = useMemo(() => normalizeAwkwardLineBreaks(text), [text]);
-
-  if (isStreaming) {
-    return (
-      <div className="whitespace-pre-wrap break-words">
-        {displayText}
-      </div>
-    );
-  }
+  const renderedText = useStreamingText(text, isStreaming);
+  const displayText = useMemo(() => normalizeAwkwardLineBreaks(renderedText), [renderedText]);
 
   return (
-    <div className="markdown-content prose prose-sm max-w-none dark:prose-invert">
+    <div className={`markdown-content prose prose-sm max-w-none dark:prose-invert overflow-x-auto ${isStreaming ? 'markdown-streaming' : ''}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
         components={{
           pre: ({ children, ...props }) => (
-            <div className="relative group code-block-container my-3">
+            <div className="relative group code-block-container my-3 overflow-hidden">
               {extractLang(children) && (
                 <div className="absolute top-0 left-0 z-10 rounded-tl-lg rounded-br-md bg-gray-700/80 dark:bg-gray-600/80 px-2.5 py-0.5 text-[10px] font-mono font-medium text-gray-300 uppercase tracking-wider">
                   {extractLang(children)}
@@ -36,7 +29,7 @@ function MarkdownContent({ text, isStreaming }: Props) {
               <CodeCopyButton text={extractText(children)} />
               <pre
                 {...props}
-                className="!bg-[#f6f8fa] dark:!bg-[#161b22] !text-gray-800 dark:!text-[#c9d1d9] rounded-lg p-4 pt-8 overflow-x-auto my-0 border border-gray-200/80 dark:border-gray-600/30 text-xs leading-relaxed font-mono"
+                className="!bg-[var(--surface-bg)] dark:!bg-[var(--surface-bg)] rounded-lg p-4 pt-8 overflow-x-auto my-0 border border-[var(--border-color)] text-xs leading-relaxed font-mono text-[var(--fg-color)]"
               >
                 {children}
               </pre>
@@ -65,7 +58,7 @@ function MarkdownContent({ text, isStreaming }: Props) {
             </div>
           ),
           blockquote: ({ children }) => (
-            <blockquote className="border-l-[3px] border-blue-400 dark:border-blue-500 pl-4 my-3 text-gray-600 dark:text-gray-400 italic">
+            <blockquote className="border-l-[3px] border-[var(--border-hover)] pl-4 my-3 text-[var(--fg-muted)] italic">
               {children}
             </blockquote>
           ),
@@ -95,11 +88,31 @@ function MarkdownContent({ text, isStreaming }: Props) {
       >
         {displayText}
       </ReactMarkdown>
+      {isStreaming && <span className="streaming-cursor" />}
     </div>
   );
 }
 
 export default memo(MarkdownContent);
+
+function useStreamingText(text: string, isStreaming: boolean) {
+  const [renderedText, setRenderedText] = useState(text);
+
+  useEffect(() => {
+    if (!isStreaming) {
+      setRenderedText(text);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setRenderedText(text);
+    }, 40);
+
+    return () => window.clearTimeout(timeout);
+  }, [text, isStreaming]);
+
+  return renderedText;
+}
 
 function normalizeAwkwardLineBreaks(text: string) {
   const lines = text.split('\n');

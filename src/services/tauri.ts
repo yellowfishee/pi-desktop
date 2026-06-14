@@ -31,7 +31,7 @@ export async function sendExtensionUIResponse(response: {
   await invoke('send_extension_ui_response', { response });
 }
 
-export async function checkPiAvailable(): Promise<{
+export async function checkPiAvailable(piPath?: string): Promise<{
   pi_available: boolean;
   pi_path?: string;
   pi_version?: string;
@@ -47,7 +47,7 @@ export async function checkPiAvailable(): Promise<{
       errors: [],
     };
   }
-  return invoke('check_pi_available');
+  return invoke('check_pi_available', { piPath: piPath?.trim() || null });
 }
 
 export async function checkPiRunning(): Promise<boolean> {
@@ -62,6 +62,7 @@ export async function startPi(): Promise<void> {
 
 export async function stopPi(): Promise<void> {
   if (!isTauriRuntime()) return;
+  autoRestartState.stoppedByUser = true;
   return invoke('stop_pi');
 }
 
@@ -147,6 +148,13 @@ function isTauriRuntime() {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
 
+// 自动重启状态（模块级，刷新后重置）
+const autoRestartState = {
+  retryCount: 0,
+  lastExitTime: 0,
+  stoppedByUser: false,
+};
+
 // ============================================================
 // Event Consumer: 监听 pi-event，分发到 stores
 // ============================================================
@@ -198,21 +206,52 @@ export async function setupEventListeners() {
     }
   });
 
-  // 监听 pi 进程退出事件
+  // 监听 pi 进程退出事件（含退避重试，主动停止则跳过）
   const unlistenProcessExit = await listen<{ code: number | null; reason: string }>('pi-process-exit', async (event) => {
     const store = useUIStore.getState();
     store.setPiRunning(false);
+
+    // 用户主动停止 → 不重启
+    if (autoRestartState.stoppedByUser) {
+      autoRestartState.stoppedByUser = false;
+      console.log('[pi] 用户主动停止，跳过自动重启');
+      return;
+    }
+
+    const exitCode = event.payload.code;
+
+    // 重试计数复位（距上次退出超过 30s 视为新周期）
+    const now = Date.now();
+    if (now - autoRestartState.lastExitTime > 30_000) {
+      autoRestartState.retryCount = 0;
+    }
+    autoRestartState.lastExitTime = now;
+    autoRestartState.retryCount += 1;
+
+    const maxRetries = 3;
+    const backoffMs = Math.min(1000 * Math.pow(2, autoRestartState.retryCount - 1), 10_000);
+
+    if (autoRestartState.retryCount > maxRetries) {
+      store.addToast({
+        level: 'error',
+        message: `pi 进程反复退出 (code: ${exitCode ?? 'unknown'})，已达最大重试次数。请在设置中检查 pi 路径。`,
+        duration: 0,
+      });
+      console.error('[pi] 达到最大重试次数，停止自动重启');
+      return;
+    }
+
     store.addToast({
       level: 'warning',
-      message: `pi 进程已退出 (code: ${event.payload.code ?? 'unknown'})，正在尝试重新连接...`,
-      duration: 5000,
+      message: `pi 进程已退出 (code: ${exitCode ?? 'unknown'})，${backoffMs / 1000}s 后重试 (${autoRestartState.retryCount}/${maxRetries})...`,
+      duration: Math.max(backoffMs, 5000),
     });
 
-    // 尝试自动重启 pi
     try {
-      await new Promise((r) => setTimeout(r, 1000)); // 等待 1s 让旧进程完全清理
+      await new Promise((r) => setTimeout(r, backoffMs));
       await startPi();
       store.setPiRunning(true);
+      autoRestartState.retryCount = 0; // 成功后复位
       store.addToast({
         level: 'info',
         message: 'pi 已自动重启',
@@ -359,6 +398,25 @@ function closeActiveAgentBubble() {
 
 let currentTurnBaseIndex = 0;
 
+// agent_start 时清理残留的旧未完成气泡（异常中断残留）
+function cleanupOrphanedAgentBubbles() {
+  const state = useMessageStore.getState();
+  const incomplete = state.messages
+    .map((m, idx) => ({ message: m, idx }))
+    .filter(({ message }) => message.role === 'assistant' && !message.isComplete);
+
+  // 0 或 1 个 → 无需清理
+  if (incomplete.length <= 1) return;
+
+  // 保留最新的（按 position），其他标记 completed + error
+  incomplete.sort((a, b) => b.idx - a.idx);
+  const [, ...orphans] = incomplete;
+  for (const { message: orphan } of orphans) {
+    console.log('[event] 清理残留气泡:', orphan.id);
+    state.completeMessage(orphan.id, 'aborted');
+  }
+}
+
 function handlePiEvent(event: PiEvent) {
   const sessionStore = useSessionStore.getState();
   const messageStore = useMessageStore.getState();
@@ -368,10 +426,13 @@ function handlePiEvent(event: PiEvent) {
     case 'agent_start':
       sessionStore.setStreaming(true);
       // 新 agent 周期开始，复用发送时创建的 pending 气泡
+      // 先清理残留的旧未完成气泡（异常中断残留），防止 baseIndex 算错
+      cleanupOrphanedAgentBubbles();
       ensureActiveAgentBubble();
       currentTurnBaseIndex = useMessageStore.getState().messages
-        .find((m) => m.role === 'assistant' && !m.isComplete)?.content.length ?? 0;
-      console.log('[event] agent_start');
+        .filter((m) => m.role === 'assistant' && !m.isComplete)
+        .reduce((max, m) => Math.max(max, m.content.length), 0);
+      console.log('[event] agent_start, baseIndex:', currentTurnBaseIndex);
       break;
 
     case 'agent_end':
@@ -387,7 +448,8 @@ function handlePiEvent(event: PiEvent) {
 
     case 'turn_start':
       currentTurnBaseIndex = useMessageStore.getState().messages
-        .find((m) => m.role === 'assistant' && !m.isComplete)?.content.length ?? 0;
+        .filter((m) => m.role === 'assistant' && !m.isComplete)
+        .reduce((max, m) => Math.max(max, m.content.length), 0);
       break;
 
     case 'turn_end':
@@ -553,18 +615,14 @@ export async function initializeApp() {
       result.pi_available,
       result.bash_available,
       result.pi_version,
+      result.pi_path
     );
-
-    if (!result.pi_available || !result.bash_available) {
-      return; // 显示安装引导页
-    }
   } catch (e) {
     console.error('Failed to check pi:', e);
     useUIStore.getState().setPiCheckResult(false, true);
-    return;
   }
 
-  // 2. 确认 pi 进程运行（Rust setup 已自动启动，此处做幂等检查）
+  // 2. 尝试启动 pi（即使检测失败也尝试，可能配置了自定义路径）
   try {
     const running = await checkPiRunning();
     if (running) {
@@ -578,11 +636,10 @@ export async function initializeApp() {
   } catch (e) {
     console.error('Failed to start pi:', e);
     useUIStore.getState().addToast({
-      level: 'error',
-      message: `无法启动 pi: ${e}`,
-      duration: 0,
+      level: 'warning',
+      message: `pi 未启动: ${e}。请在设置中配置 pi 路径。`,
+      duration: 5000,
     });
-    return;
   }
 
   // 3. 加载会话列表 + 可用模型 + 获取状态 — 并行执行

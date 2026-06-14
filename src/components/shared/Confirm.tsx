@@ -97,14 +97,14 @@ function ConfirmDialog({
   return (
     <DialogOverlay onClose={onCancel}>
       <div className="px-5 pt-5 pb-3">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
-        <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{message}</p>
+        <h3 className="text-sm font-semibold text-[var(--fg-color)]">{title}</h3>
+        <p className="mt-1.5 text-xs text-[var(--fg-muted)] leading-relaxed">{message}</p>
       </div>
       <div className="flex justify-end gap-2 px-5 pb-5 pt-1">
-        <button onClick={onCancel} className="px-4 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+        <button onClick={onCancel} className="px-4 py-1.5 rounded-lg text-xs font-medium text-[var(--fg-muted)] bg-[var(--raised-bg)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)] transition-all">
           {cancelLabel}
         </button>
-        <button onClick={onConfirm} className={`px-4 py-1.5 rounded-lg text-xs font-medium text-white transition-colors ${danger ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'}`}>
+        <button onClick={onConfirm} className={`px-4 py-1.5 rounded-lg text-xs font-medium text-white transition-all ${danger ? 'bg-red-500 hover:bg-red-600' : 'bg-[var(--accent)] hover:opacity-90'}`}>
           {confirmLabel}
         </button>
       </div>
@@ -141,9 +141,9 @@ function PromptDialog({
   return (
     <DialogOverlay onClose={onCancel}>
       <div className="px-5 pt-5 pb-3">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+        <h3 className="text-sm font-semibold text-[var(--fg-color)]">{title}</h3>
         {message && (
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{message}</p>
+          <p className="mt-1 text-xs text-[var(--fg-muted)]">{message}</p>
         )}
         <input
           ref={inputRef}
@@ -152,14 +152,14 @@ function PromptDialog({
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onCancel(); }}
           placeholder={placeholder}
-          className="mt-3 w-full px-3 py-2 rounded-lg text-sm bg-gray-100 dark:bg-gray-700 border border-transparent focus:border-blue-400 dark:focus:border-blue-500 focus:bg-white dark:focus:bg-gray-800 outline-none transition-colors"
+          className="mt-3 w-full px-3 py-2 rounded-lg text-sm bg-[var(--raised-bg)] border border-[var(--border-color)] focus:border-[var(--accent)] focus:bg-[var(--surface-bg)] focus:shadow-[0_0_0_2px_var(--accent-soft)] outline-none transition-all text-[var(--fg-color)] placeholder:text-[var(--fg-subtle)]"
         />
       </div>
       <div className="flex justify-end gap-2 px-5 pb-5 pt-1">
-        <button onClick={onCancel} className="px-4 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+        <button onClick={onCancel} className="px-4 py-1.5 rounded-lg text-xs font-medium text-[var(--fg-muted)] bg-[var(--raised-bg)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)] transition-all">
           取消
         </button>
-        <button onClick={handleSubmit} disabled={!value.trim()} className="px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+        <button onClick={handleSubmit} disabled={!value.trim()} className="px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-[var(--accent)] hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
           确定
         </button>
       </div>
@@ -174,8 +174,8 @@ function PromptDialog({
 function DialogOverlay({ children, onClose }: { children: ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[360px] overflow-hidden">
+      <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={onClose} />
+      <div className="relative bg-[var(--surface-bg)] rounded-xl shadow-2xl w-[360px] overflow-hidden animate-scale-in">
         {children}
       </div>
     </div>

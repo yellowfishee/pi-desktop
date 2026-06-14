@@ -37,13 +37,13 @@ function UserBubble({ message }: Props) {
     : message.content.find((b) => b.type === 'text')?.text || '';
 
   return (
-    <article className="mb-8 flex justify-end">
+    <article className="mb-7 flex justify-end">
       <div className="max-w-[82%] sm:max-w-[72%]">
-        <div className="rounded-2xl rounded-br-md bg-gray-100 px-4 py-3 text-sm text-gray-900 shadow-sm dark:bg-gray-800 dark:text-gray-100">
+        <div className="rounded-xl border border-[var(--border-color)] bg-[var(--raised-bg)] px-4 py-3 text-sm text-[var(--fg-color)]">
           <p className="whitespace-pre-wrap break-words leading-relaxed">{text}</p>
         </div>
         <div className="mt-1 text-right">
-          <span className="text-[10px] text-gray-400/60 dark:text-gray-500/60">
+          <span className="text-[10px] text-[var(--fg-subtle)]">
             {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
@@ -71,18 +71,18 @@ function AssistantBubble({ message }: Props) {
   };
 
   return (
-    <article className="mb-8 flex gap-3">
-      <div className="mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 ring-1 ring-gray-200/60 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700/60">
+    <article className="mb-7 flex gap-3">
+      <div className="mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--surface-bg)] text-[var(--accent)]">
         <IconPi className="h-3.5 w-3.5" />
       </div>
 
       <div className="flex-1 min-w-0">
         <div className="mb-2 flex items-center gap-2">
-          <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">Pi</span>
+          <span className="text-xs font-semibold text-[var(--fg-color)]">Pi</span>
           {message.model && (
-            <span className="rounded-full bg-gray-100/80 px-2 py-0.5 text-[10px] text-gray-500 dark:bg-gray-800/80 dark:text-gray-400">{message.model}</span>
+            <span className="rounded-md border border-[var(--border-color)] bg-[var(--raised-bg)] px-1.5 py-0.5 text-[10px] text-[var(--fg-muted)]">{message.model}</span>
           )}
-          <span className="text-[10px] text-gray-400/60 dark:text-gray-500/60">
+          <span className="text-[10px] text-[var(--fg-subtle)]">
             {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
@@ -103,7 +103,7 @@ function AssistantBubble({ message }: Props) {
           <div className="mt-3 flex items-center gap-1">
             <button
               onClick={handleCopy}
-              className="rounded-lg px-2 py-0.5 text-[10px] text-gray-400/60 transition-colors hover:bg-gray-100/70 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-gray-800/70 dark:hover:text-gray-300"
+              className="rounded-md px-2 py-0.5 text-[10px] text-[var(--fg-subtle)] transition-colors hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)]"
             >
               {copied ? '已复制' : '复制'}
             </button>
@@ -123,7 +123,7 @@ function AssistantBubble({ message }: Props) {
 
 function WaitingForAssistant() {
   return (
-    <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
+    <div className="flex items-center gap-2 text-sm text-[var(--fg-subtle)]">
       <span className="flex gap-1">
         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current [animation-delay:120ms]" />
@@ -138,7 +138,7 @@ const ContentBlockRenderer = memo(function ContentBlockRenderer({ block }: { blo
   switch (block.type) {
     case 'text':
       return (
-        <div className="markdown-body text-sm text-gray-800 dark:text-gray-200">
+        <div className="markdown-body min-w-0 overflow-hidden text-sm text-[var(--fg-color)]">
           <MarkdownContent text={block.text || ''} isStreaming={block.isStreaming || false} />
         </div>
       );
@@ -158,8 +158,8 @@ const ContentBlockRenderer = memo(function ContentBlockRenderer({ block }: { blo
 
 function SystemBubble({ message }: Props) {
   return (
-    <article className="mb-8 flex justify-center">
-      <div className="flex max-w-[80%] items-center gap-1.5 rounded-full border border-gray-200/60 bg-gray-50/80 px-3 py-1.5 text-[11px] text-gray-500/80 backdrop-blur dark:border-gray-700/60 dark:bg-gray-800/60 dark:text-gray-400">
+    <article className="mb-7 flex justify-center">
+      <div className="flex max-w-[80%] items-center gap-1.5 rounded-full border border-[var(--border-color)] bg-[var(--raised-bg)] px-3 py-1.5 text-[11px] text-[var(--fg-muted)]">
         <IconCompress className="h-3 w-3 flex-shrink-0" />
         <span>{message.summary || '上下文已压缩'}</span>
       </div>
@@ -175,17 +175,17 @@ function BashBubble({ message }: Props) {
   const displayLines = expanded || !truncated ? lines : lines.slice(0, 50);
 
   return (
-    <article className="mb-8 flex gap-3">
-      <div className="mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 ring-1 ring-gray-200/60 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700/60">
+    <article className="mb-7 flex gap-3">
+      <div className="mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--surface-bg)] text-[var(--fg-muted)]">
         <IconTerminal className="h-3.5 w-3.5" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="mb-2 font-mono text-[11px] text-gray-500 dark:text-gray-400">
+        <div className="mb-2 font-mono text-[11px] text-[var(--fg-muted)]">
           <span className="select-none text-gray-400 mr-1.5">$</span>{message.command}
         </div>
-        <div className="max-h-80 overflow-y-auto overflow-x-auto rounded-xl border border-gray-200/60 bg-gray-50 p-3 font-mono text-xs leading-relaxed text-gray-800 dark:border-gray-700/60 dark:bg-gray-900 dark:text-gray-200">
+        <div className="max-h-80 overflow-y-auto overflow-x-auto rounded-lg border border-[var(--border-color)] bg-[var(--surface-bg)] p-3 font-mono text-xs leading-relaxed text-[var(--fg-color)]">
           {displayLines.map((line, i) => (
-            <div key={i} className="whitespace-pre-wrap">{line || ' '}</div>
+            <div key={i} className="whitespace-pre-wrap break-words">{line || ' '}</div>
           ))}
           {truncated && !expanded && (
             <button

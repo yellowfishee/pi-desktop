@@ -37,31 +37,31 @@ export default function TitleBar() {
   return (
     <div
       data-tauri-drag-region
-      className="h-9 flex items-center justify-between px-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 select-none flex-shrink-0"
+      className="h-10 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--chrome-bg)] px-3 select-none flex-shrink-0"
     >
       {/* 左侧 */}
       <div className="flex items-center gap-1.5 min-w-0">
-        <IconPi className="w-4 h-4 text-blue-500 flex-shrink-0" />
+        <IconPi className="w-4 h-4 text-[var(--accent)] flex-shrink-0" />
         {activeProject && (
-          <span className="flex items-center gap-1 text-xxs text-gray-400 dark:text-gray-500 truncate">
+          <span className="flex items-center gap-1 text-xxs text-[var(--fg-subtle)] truncate">
             <IconFolder className="w-3 h-3 flex-shrink-0" />
             {activeProject}
           </span>
         )}
         {sessionName && (
-          <span className="text-xs text-gray-600 dark:text-gray-400 truncate">
+          <span className="text-xs text-[var(--fg-muted)] truncate">
             / {sessionName}
           </span>
         )}
         {!sessionName && !activeProject && (
-          <span className="text-xs text-gray-400 truncate">Pi Desktop</span>
+          <span className="text-xs text-[var(--fg-muted)] truncate">Pi Desktop</span>
         )}
       </div>
 
       {/* 中部 */}
       <div className="flex items-center gap-1">
         {model && (
-          <span className="text-xxs px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+          <span className="rounded-md border border-[var(--border-color)] bg-[var(--raised-bg)] px-1.5 py-0.5 text-xxs text-[var(--fg-muted)]">
             {model.name}
           </span>
         )}
@@ -69,17 +69,17 @@ export default function TitleBar() {
 
       {/* 右侧 */}
       <div className="flex items-center gap-1" data-tauri-drag-region="false">
-        <button onClick={handleMinimize} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400">
+        <button onClick={handleMinimize} className="rounded-md p-1 text-[var(--fg-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)]">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M20 12H4" /></svg>
         </button>
-        <button onClick={handleMaximize} className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400">
+        <button onClick={handleMaximize} className="rounded-md p-1 text-[var(--fg-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)]">
           {isMaximized ? (
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6h8v8H6zM10 14v4h8v-8h-4" /></svg>
           ) : (
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M4 4h16v16H4z" /></svg>
           )}
         </button>
-        <button onClick={handleClose} className="p-1 rounded hover:bg-red-500 hover:text-white text-gray-500 dark:text-gray-400">
+        <button onClick={handleClose} className="rounded-md p-1 text-[var(--fg-muted)] hover:bg-red-500 hover:text-white">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       </div>

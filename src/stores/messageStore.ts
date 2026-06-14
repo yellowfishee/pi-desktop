@@ -442,11 +442,13 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
           b.contentIndex === contentIndex && b.type === 'toolCall'
             ? {
                 ...b,
-                toolCallId: toolCall.id,
-                toolName: getToolName(toolCall),
-                arguments: toolCall.arguments,
+                toolCallId: toolCall.id || b.toolCallId,
+                toolName: getToolName(toolCall) || b.toolName,
+                arguments: toolCall.arguments || b.arguments,
                 argumentsRaw: undefined,
-                toolStatus: 'running' as const,
+                // 保留已有的 toolResult 和 toolStatus，防止覆盖
+                toolResult: b.toolResult,
+                toolStatus: b.toolResult ? b.toolStatus : ('running' as const),
               }
             : b
         );

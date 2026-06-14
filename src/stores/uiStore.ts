@@ -30,6 +30,7 @@ interface UIStoreState {
   bashAvailable: boolean;
   piVersion?: string;
   piCheckDone: boolean;
+  piPath?: string;
 
   // 通知
   toasts: Toast[];
@@ -60,8 +61,9 @@ interface UIStoreState {
   setFontFamily: (font: string) => void;
   setFontSize: (size: string) => void;
   setPiRunning: (running: boolean) => void;
+  setPiPath: (path: string) => void;
   saveConfig: () => void;
-  setPiCheckResult: (available: boolean, bashAvailable: boolean, version?: string) => void;
+  setPiCheckResult: (available: boolean, bashAvailable: boolean, version?: string, path?: string) => void;
   addToast: (toast: Omit<Toast, 'id'>) => void;
   dismissToast: (id: string) => void;
   setExtensionDialog: (request?: ExtensionDialogRequest) => void;
@@ -87,6 +89,7 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
   piAvailable: false,
   bashAvailable: true,  // 非 Windows 默认 true
   piCheckDone: false,
+  piPath: undefined,
   toasts: [],
   extensionStatuses: {},
   extensionWidgets: {},
@@ -129,8 +132,16 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
     saveAppConfig();
   },
   setPiRunning: (running) => set({ piRunning: running }),
-  setPiCheckResult: (available, bashAvailable, version) =>
-    set({ piAvailable: available, bashAvailable, piVersion: version, piCheckDone: true }),
+  setPiPath: (path) => set({ piPath: path }),
+  setPiCheckResult: (available, bashAvailable, version, path) =>
+    set((state) => ({
+      piAvailable: available,
+      bashAvailable,
+      piVersion: version ?? state.piVersion,
+      piCheckDone: true,
+      // 只有拿到新路径时才更新 piPath，失败时保留已有值
+      piPath: path ?? state.piPath,
+    })),
 
   addToast: (toast) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -276,7 +287,7 @@ export function saveAppConfig() {
           font_family: s.fontFamily,
           font_size: s.fontSize,
           last_session: null,
-          pi_path: null,
+          pi_path: s.piPath || null,
         },
       });
     } catch (e) {

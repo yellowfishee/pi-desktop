@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pi-desktop 架构文档</title>
+<style>
+:root{--bg:#0f1117;--bg-card:#181a20;--bg-code:#1e2028;--border:#2a2d38;--text:#e4e6eb;--text-dim:#8b8fa3;--accent:#6c8cff;--accent2:#56d4a0;--accent3:#f0a45d;--accent4:#e06c75;--accent5:#c678dd;--radius:10px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;-webkit-font-smoothing:antialiased}
+.container{max-width:1160px;margin:0 auto;padding:48px 24px 80px}
+.header{text-align:center;margin-bottom:56px}
+.header h1{font-size:2.4rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:12px}
+.header p{color:var(--text-dim);font-size:1.05rem;max-width:640px;margin:0 auto}
+.section{margin-bottom:56px}
+.section-title{font-size:1.35rem;font-weight:700;margin-bottom:20px;padding-left:14px;border-left:3px solid var(--accent)}
+.section-title.green{border-left-color:var(--accent2)}
+.section-title.orange{border-left-color:var(--accent3)}
+.section-title.purple{border-left-color:var(--accent5)}
+pre{background:var(--bg-code);border:1px solid var(--border);border-radius:6px;padding:14px 18px;font-family:'JetBrains Mono','Fira Code',Consolas,monospace;font-size:0.82rem;line-height:1.65;overflow-x:auto;margin:10px 0;color:var(--text)}
+code{font-family:'JetBrains Mono','Fira Code',Consolas,monospace;font-size:0.88em;background:var(--bg-code);padding:2px 6px;border-radius:4px}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;margin-right:6px;vertical-align:middle}
+.tag.rust{background:rgba(222,165,132,0.15);color:#dea584}
+.tag.ts{background:rgba(81,154,186,0.15);color:#519aba}
+.tag.event{background:rgba(86,212,160,0.15);color:#56d4a0}
+.tag.stdin{background:rgba(108,140,255,0.15);color:#6c8cff}
+.tag.stdout{background:rgba(240,164,93,0.15);color:#f0a45d}
+.data-table{width:100%;border-collapse:collapse;background:var(--bg-card);border-radius:var(--radius);overflow:hidden;border:1px solid var(--border)}
+.data-table th{background:var(--bg-code);padding:12px 18px;text-align:left;font-weight:600;font-size:0.88rem;color:var(--text-dim);border-bottom:1px solid var(--border)}
+.data-table td{padding:12px 18px;font-size:0.9rem;border-bottom:1px solid var(--border)}
+.data-table tr:last-child td{border-bottom:none}
+.data-table code{font-size:0.82rem}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:22px 24px}
+.card h3{font-size:1rem;margin-bottom:8px}
+.card p{color:var(--text-dim);font-size:0.88rem}
+.card pre{margin-top:12px}
+.flow-steps{display:flex;flex-direction:column;position:relative}
+.flow-step{display:flex;gap:20px;align-items:flex-start;position:relative;padding:20px 0}
+.flow-step:not(:last-child)::after{content:'';position:absolute;left:23px;top:56px;bottom:-4px;width:2px;background:var(--border)}
+.flow-num{flex-shrink:0;width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;color:var(--bg);background:var(--accent);position:relative;z-index:1}
+.flow-num.green{background:var(--accent2)}.flow-num.orange{background:var(--accent3)}.flow-num.purple{background:var(--accent5)}.flow-num.red{background:var(--accent4)}
+.flow-body{flex:1;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px}
+.flow-body h3{font-size:1.05rem;margin-bottom:8px}
+.flow-body p{color:var(--text-dim);font-size:0.92rem;margin-bottom:10px}
+.flow-body p:last-child{margin-bottom:0}
+@media(max-width:768px){.header h1{font-size:1.6rem}.card-grid{grid-template-columns:1fr}.container{padding:24px 16px 48px}}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>pi-desktop 架构文档</h1>
+  <p>基于 Tauri 的非侵入式 pi GUI 客户端 &mdash; 通过 stdin/stdout JSONL 协议与 pi CLI 进程通信</p>
+</div>
+
+<div class="section">
+<h2 class="section-title">1. 整体架构</h2>
+<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:28px 16px;overflow-x:auto">
+
+<p style="color:var(--text-dim);font-size:0.92rem;margin-bottom:20px">
+pi-desktop 的核心设计理念是<strong style="color:var(--accent)">非侵入式</strong>：不修改 pi 的任何代码，而是通过启动 <code>pi --mode rpc</code> 子进程，利用 stdin/stdout 的 JSONL 协议实现全部交互。
+</p>
+
+<p style="color:var(--text-dim);font-size:0.92rem;margin-bottom:20px">
+三层架构清晰分层：<strong style="color:var(--accent)">React 前端</strong> 负责 UI 渲染，<strong style="color:var(--accent2)">Rust 后端 (Tauri)</strong> 负责进程管理和协议桥接，<strong style="color:var(--accent3)">pi CLI</strong> 负责核心 AI 逻辑。
+</p>
+
+<svg width="1060" height="440" viewBox="0 0 1060 440" xmlns="http://www.w3.org/2000/svg" font-family="Inter,-apple-system,sans-serif">
+<defs>
+<marker id="aB" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6c8cff"/></marker>
+<marker id="aG" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#56d4a0"/></marker>
+<marker id="aO" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#f0a45d"/></marker>
+</defs>
+
+<!-- Zone backgrounds -->
+<rect x="0" y="0" width="350" height="430" rx="12" fill="#1a1d28" stroke="#2a2d38"/>
+<text x="175" y="24" text-anchor="middle" fill="#8b8fa3" font-size="13" font-weight="600">React 前端 (WebView)</text>
+
+<rect x="370" y="0" width="260" height="430" rx="12" fill="#1a1d22" stroke="#2a2d38"/>
+<text x="500" y="24" text-anchor="middle" fill="#8b8fa3" font-size="13" font-weight="600">Rust 后端 (Tauri)</text>
+
+<rect x="650" y="0" width="410" height="430" rx="12" fill="#1d1a22" stroke="#2a2d38"/>
+<text x="855" y="24" text-anchor="middle" fill="#8b8fa3" font-size="13" font-weight="600">pi CLI 子进程 (--mode rpc)</text>
+
+<!-- Frontend boxes -->
+<rect x="20" y="40" width="310" height="55" rx="8" fill="#252830" stroke="#6c8cff" stroke-width="1.5"/>
+<text x="175" y="62" text-anchor="middle" fill="#6c8cff" font-size="13" font-weight="600">sendCommand()</text>
+<text x="175" y="82" text-anchor="middle" fill="#8b8fa3" font-size="11">@tauri-apps/api invoke → Tauri IPC</text>
+
+<rect x="20" y="110" width="310" height="75" rx="8" fill="#252830" stroke="#c678dd" stroke-width="1.5"/>
+<text x="175" y="132" text-anchor="middle" fill="#c678dd" font-size="13" font-weight="600">EventConsumer (tauri.ts)</text>
+<text x="175" y="155" text-anchor="middle" fill="#8b8fa3" font-size="11">listen("pi-event") → handlePiEvent()</text>
+<text x="175" y="173" text-anchor="middle" fill="#8b8fa3" font-size="11">listen("pi-extension-ui-request")</text>
+
+<rect x="20" y="200" width="310" height="55" rx="8" fill="#252830" stroke="#56d4a0" stroke-width="1.5"/>
+<text x="175" y="222" text-anchor="middle" fill="#56d4a0" font-size="13" font-weight="600">Zustand Stores</text>
+<text x="175" y="242" text-anchor="middle" fill="#8b8fa3" font-size="11">UIStore / SessionStore / MessageStore</text>
+
+<rect x="20" y="270" width="310" height="55" rx="8" fill="#252830" stroke="#f0a45d" stroke-width="1.5"/>
+<text x="175" y="292" text-anchor="middle" fill="#f0a45d" font-size="13" font-weight="600">React Components</text>
+<text x="175" y="312" text-anchor="middle" fill="#8b8fa3" font-size="11">ChatPanel / Sidebar / PropertiesPanel</text>
+
+<!-- Rust boxes -->
+<rect x="390" y="40" width="220" height="55" rx="8" fill="#252830" stroke="#dea584" stroke-width="1.5"/>
+<text x="500" y="62" text-anchor="middle" fill="#dea584" font-size="13" font-weight="600">AppState (全局状态)</text>
+<text x="500" y="82" text-anchor="middle" fill="#8b8fa3" font-size="11">stdin + pending_commands HashMap</text>
+
+<rect x="390" y="110" width="220" height="80" rx="8" fill="#252830" stroke="#dea584" stroke-width="1.5"/>
+<text x="500" y="132" text-anchor="middle" fill="#dea584" font-size="13" font-weight="600">Tauri Commands</text>
+<text x="500" y="152" text-anchor="middle" fill="#8b8fa3" font-size="11">send_command → stdin + oneshot</text>
+<text x="500" y="172" text-anchor="middle" fill="#8b8fa3" font-size="11">start_pi / stop_pi / list_sessions</text>
+<text x="500" y="188" text-anchor="middle" fill="#8b8fa3" font-size="11">check_pi / config / extension_ui_response</text>
+
+<rect x="390" y="210" width="220" height="90" rx="8" fill="#252830" stroke="#f0a45d" stroke-width="1.5"/>
+<text x="500" y="232" text-anchor="middle" fill="#f0a45d" font-size="13" font-weight="600">stdout_reader_task</text>
+<text x="500" y="252" text-anchor="middle" fill="#8b8fa3" font-size="11">(tokio 后台异步任务)</text>
+<text x="500" y="272" text-anchor="middle" fill="#e4e6eb" font-size="11">type=response → oneshot唤醒</text>
+<text x="500" y="290" text-anchor="middle" fill="#e4e6eb" font-size="11">type=extension_ui_request → emit</text>
+<text x="500" y="305" text-anchor="middle" fill="#e06c75" font-size="11">EOF → emit("pi-process-exit")</text>
+
+<rect x="390" y="320" width="220" height="55" rx="8" fill="#252830" stroke="#56d4a0" stroke-width="1.5"/>
+<text x="500" y="342" text-anchor="middle" fill="#56d4a0" font-size="13" font-weight="600">spawn_pi_and_reader()</text>
+<text x="500" y="362" text-anchor="middle" fill="#8b8fa3" font-size="11">pi --mode rpc + stdin/stdout pipe</text>
+
+<!-- pi boxes -->
+<rect x="670" y="40" width="380" height="65" rx="8" fill="#252830" stroke="#6c8cff" stroke-width="1.5"/>
+<text x="855" y="62" text-anchor="middle" fill="#6c8cff" font-size="13" font-weight="600">pi stdin (JSONL 输入)</text>
+<text x="855" y="82" text-anchor="middle" fill="#8b8fa3" font-size="11">{type:"prompt", id:"req-xxx", message:"..."} + \n</text>
+<text x="855" y="98" text-anchor="middle" fill="#8b8fa3" font-size="11">{type:"extension_ui_response", id:"...", value:"..."} + \n</text>
+
+<rect x="670" y="120" width="380" height="100" rx="8" fill="#252830" stroke="#e06c75" stroke-width="1.5"/>
+<text x="855" y="142" text-anchor="middle" fill="#e06c75" font-size="13" font-weight="600">pi 核心引擎</text>
+<text x="855" y="162" text-anchor="middle" fill="#8b8fa3" font-size="11">接收 RPC 命令 → 调用 LLM → 执行工具</text>
+<text x="855" y="180" text-anchor="middle" fill="#8b8fa3" font-size="11">流式输出事件 + 最终响应</text>
+<text x="855" y="198" text-anchor="middle" fill="#8b8fa3" font-size="11">extension_ui_request → 请求用户交互</text>
+
+<rect x="670" y="230" width="380" height="115" rx="8" fill="#252830" stroke="#f0a45d" stroke-width="1.5"/>
+<text x="855" y="252" text-anchor="middle" fill="#f0a45d" font-size="13" font-weight="600">pi stdout (JSONL 事件流)</text>
+<text x="855" y="272" text-anchor="middle" fill="#e4e6eb" font-size="11">{type:"response", id:"req-xxx", success:true, data:...}</text>
+<text x="855" y="290" text-anchor="middle" fill="#e4e6eb" font-size="11">{type:"agent_start"} {type:"agent_end"}</text>
+<text x="855" y="308" text-anchor="middle" fill="#e4e6eb" font-size="11">{type:"message_update", assistantMessageEvent:{...}}</text>
+<text x="855" y="326" text-anchor="middle" fill="#e4e6eb" font-size="11">{type:"tool_execution_start/end", toolCallId, ...}</text>
+<text x="855" y="344" text-anchor="middle" fill="#e4e6eb" font-size="11">{type:"extension_ui_request", method:"select", ...}</text>
+
+<rect x="670" y="360" width="380" height="55" rx="8" fill="#252830" stroke="#c678dd" stroke-width="1.5"/>
+<text x="855" y="382" text-anchor="middle" fill="#c678dd" font-size="13" font-weight="600">~/.pi/agent/sessions/ (JSONL)</text>
+<text x="855" y="400" text-anchor="middle" fill="#8b8fa3" font-size="11">pi 自动持久化，Rust 扫描读取元数据</text>
+
+<!-- Arrows -->
+<!-- Frontend → Rust (invoke) -->
+<path d="M330,68 L390,68" stroke="#6c8cff" stroke-width="2.5" marker-end="url(#aB)" fill="none"/>
+<text x="360" y="60" fill="#6c8cff" font-size="11" font-weight="600" text-anchor="middle">invoke</text>
+
+<!-- Rust → pi stdin -->
+<path d="M610,130 L670,68" stroke="#6c8cff" stroke-width="2.5" marker-end="url(#aB)" fill="none"/>
+<text x="640" y="90" fill="#6c8cff" font-size="11" font-weight="600" text-anchor="middle">stdin</text>
+
+<!-- pi stdout → Rust stdout_reader -->
+<path d="M670,275 L610,265" stroke="#f0a45d" stroke-width="2.5" marker-end="url(#aO)" fill="none"/>
+<text x="640" y="268" fill="#f0a45d" font-size="11" font-weight="600" text-anchor="middle">stdout</text>
+
+<!-- Rust stdout_reader → Frontend EventConsumer (emit) -->
+<path d="M390,265 L330,148" stroke="#56d4a0" stroke-width="2.5" marker-end="url(#aG)" fill="none"/>
+<text x="360" y="210" fill="#56d4a0" font-size="11" font-weight="600" text-anchor="middle">emit</text>
+
+<!-- Rust spawn → pi process -->
+<path d="M610,342 L670,155" stroke="#56d4a0" stroke-width="1.5" marker-end="url(#aG)" fill="none" stroke-dasharray="5 3"/>
+
+<!-- Rust ← pi extension_ui_response (stdin) -->
+<path d="M670,98 L610,165" stroke="#6c8cff" stroke-width="1.5" marker-end="url(#aB)" fill="none" stroke-dasharray="5 3"/>
+<text x="640" y="130" fill="#6c8cff" font-size="10" text-anchor="middle">ext response</text>
+
+<!-- Frontend Stores → Components -->
+<path d="M175,255 L175,270" stroke="#56d4a0" stroke-width="1.5" fill="none" stroke-dasharray="3 2"/>
+
+</svg>
+
+<div style="margin-top:24px">
+<table class="data-table">
+<tr><th style="width:140px">颜色</th><th style="width:120px">含义</th><th>说明</th></tr>
+<tr><td><span style="color:#6c8cff;font-weight:600">&#9679; 蓝色</span></td><td>请求通道</td><td>前端 invoke → Rust → pi stdin。也用于 extension_ui_response 回写</td></tr>
+<tr><td><span style="color:#f0a45d;font-weight:600">&#9679; 橙色</span></td><td>响应通道</td><td>pi stdout → Rust stdout_reader_task 读取</td></tr>
+<tr><td><span style="color:#56d4a0;font-weight:600">&#9679; 绿色</span></td><td>事件通道</td><td>Rust emit("pi-event") → 前端 listen → Zustand Store 更新</td></tr>
+<tr><td><span style="color:#dea584;font-weight:600">&#9679; 褐色</span></td><td>内部通道</td><td>oneshot channel 匹配 response id → 唤醒 send_command</td></tr>
+<tr><td><span style="color:#c678dd;font-weight:600">&#9679; 紫色</span></td><td>持久化</td><td>~/.pi/agent/sessions/ (pi 自动写入) + config.json (Rust 写入)</td></tr>
+<tr><td><span style="color:#e06c75;font-weight:600">&#9679; 红色</span></td><td>异常</td><td>进程退出/EOF → 清理状态 + emit("pi-process-exit") → 前端自动重启</td></tr>
+</table>
+</div>
+
+</div>
+</div>
+
+<div class="section">
+<h2 class="section-title green">2. 一次完整对话的数据流</h2>
+<div class="flow-steps">
+
+<div class="flow-step">
+<div class="flow-num">1</div>
+<div class="flow-body">
+<h3><span class="tag ts">TypeScript</span> 用户点击发送 → sendCommand()</h3>
+<p>用户在 ChatPanel 输入消息，点击发送按钮。前端调用 <code>sendCommand({ type:"prompt", message:"用户输入" })</code></p>
+<p>底层通过 <code>@tauri-apps/api invoke('send_command', { command })</code> 发起 Tauri IPC 调用</p>
+</div>
+</div>
+
+<div class="flow-step">
+<div class="flow-num green">2</div>
+<div class="flow-body">
+<h3><span class="tag rust">Rust</span> send_command → stdin 写入 + 注册 oneshot</h3>
+<p>Rust <code>commands::send_command()</code> 接收到命令后：</p>
+<pre>1. 分配 id (如 "req-3a7f1b2c"), 若命令无 id 则自动生成
+2. 创建 oneshot channel (tx, rx), 将 tx 存入 pending_commands HashMap
+3. JSON 序列化命令 → 写入 pi 进程的 stdin: write_all(json + "\n")
+4. flush stdin, 确保数据立即发送
+5. await oneshot rx (带超时: prompt 180s, get_state 10s, 其他 30s)</pre>
+</div>
+</div>
+
+<div class="flow-step">
+<div class="flow-num orange">3</div>
+<div class="flow-body">
+<h3><span class="tag stdout">pi stdout</span> pi 处理命令 → 输出事件流</h3>
+<p>pi 核心引擎接收命令后，调用 LLM API，流式输出如下事件（每行一个 JSON）：</p>
+<pre>{ "type":"agent_start" }
+{ "type":"message_update", "assistantMessageEvent":{"type":"text_delta","delta":"你好"} }
+{ "type":"message_update", "assistantMessageEvent":{"type":"text_delta","delta":"，世界"} }
+{ "type":"message_update", "assistantMessageEvent":{"type":"toolcall_start","partial":{"name":"read"}} }
+{ "type":"message_update", "assistantMessageEvent":{"type":"toolcall_delta","delta":"..."} }
+{ "type":"tool_execution_start", "toolCallId":"tc-1", "toolName":"read" }
+{ "type":"tool_execution_end",   "toolCallId":"tc-1", "toolName":"read", "result":{...} }
+{ "type":"message_update", "assistantMessageEvent":{"type":"text_delta","delta":"根据文件内容"} }
+{ "type":"message_update", "assistantMessageEvent":{"type":"done","reason":"stop"} }
+{ "type":"agent_end" }
+{ "type":"response", "id":"req-3a7f1b2c", "success":true, "data":{...} }</pre>
+</div>
+</div>
+
+<div class="flow-step">
+<div class="flow-num purple">4</div>
+<div class="flow-body">
+<h3><span class="tag rust">Rust</span> stdout_reader_task → 多路分派</h3>
+<p>Rust 后台 tokio 任务逐行读取 pi stdout，按 <code>type</code> 字段分派：</p>
+<table class="data-table">
+<tr><th>pi stdout type</th><th>处理方式</th><th>说明</th></tr>
+<tr><td><code>"response"</code></td><td>oneshot channel 唤醒</td><td>匹配 id → 通过 pending_commands[id] 的 tx 发送 → send_command 的 rx 收到 → 返回给前端</td></tr>
+<tr><td><code>"extension_ui_request"</code></td><td><code>emit("pi-extension-ui-request")</code></td><td>扩展请求用户交互（select/confirm/input/editor/notify/setStatus）</td></tr>
+<tr><td>其他 (event)</td><td><code>emit("pi-event")</code></td><td>agent_start/end, message_update, tool_execution, compaction, queue_update 等</td></tr>
+</table>
+</div>
+</div>
+
+<div class="flow-step">
+<div class="flow-num green">5</div>
+<div class="flow-body">
+<h3><span class="tag event">Event</span> Tauri Event → 前端 EventConsumer</h3>
+<p>前端通过 <code>listen("pi-event")</code> 和 <code>listen("pi-extension-ui-request")</code> 捕获 Rust emit 的所有事件</p>
+<p><code>handlePiEvent()</code> 按事件类型分发到不同的 Zustand store：</p>
+<table class="data-table">
+<tr><th>事件类型</th><th>目标 Store</th><th>动作</th></tr>
+<tr><td><code>agent_start</code></td><td>SessionStore + MessageStore</td><td>setStreaming(true) + ensureAssistantMessage()</td></tr>
+<tr><td><code>message_update (text_delta)</code></td><td>MessageStore</td><td>queueMessageDelta → rAF 批量合并 → applyBatchDeltas</td></tr>
+<tr><td><code>message_update (toolcall_start)</code></td><td>MessageStore</td><td>addToolCall(contentIndex, partial)</td></tr>
+<tr><td><code>tool_execution_start/end</code></td><td>MessageStore</td><td>updateToolExecution(toolCallId, status, result)</td></tr>
+<tr><td><code>agent_end</code></td><td>SessionStore + MessageStore</td><td>setStreaming(false) + completeMessage</td></tr>
+<tr><td><code>extension_ui_request (select)</code></td><td>UIStore</td><td>setExtensionDialog → 弹出选择对话框</td></tr>
+<tr><td><code>extension_ui_request (notify)</code></td><td>UIStore</td><td>addToast (排除 TPS 指标)</td></tr>
+<tr><td><code>extension_ui_request (setStatus)</code></td><td>UIStore</td><td>setExtensionStatus(key, text)</td></tr>
+</table>
+</div>
+</div>
+
+<div class="flow-step">
+<div class="flow-num">6</div>
+<div class="flow-body">
+<h3><span class="tag ts">TypeScript</span> Zustand Store → React 重渲染</h3>
+<p>Store 状态更新触发 React 组件重渲染，用户在 ChatPanel 中看到：</p>
+<ul style="color:var(--text-dim);font-size:0.92rem;margin-top:8px;padding-left:20px">
+<li>流式文本逐步追加（通过 requestAnimationFrame 批量合并避免高频渲染）</li>
+<li>工具调用卡片从 pending → running → success/error</li>
+<li>扩展状态栏实时更新</li>
+<li>通知 toast 自动弹出和消失</li>
+</ul>
+</div>
+</div>
+
+</div>
+</div>
+
+<div class="section">
+<h2 class="section-title orange">3. RPC 命令清单</h2>
+
+<table class="data-table">
+<tr><th>命令 type</th><th>方向</th><th>超时</th><th>说明</th></tr>
+<tr><td><code>prompt</code></td><td>前端 → pi</td><td>180s</td><td>发送用户消息，触发 AI 生成</td></tr>
+<tr><td><code>abort</code></td><td>前端 → pi</td><td>30s</td><td>中止当前生成</td></tr>
+<tr><td><code>new_session</code></td><td>前端 → pi</td><td>180s</td><td>创建新会话</td></tr>
+<tr><td><code>switch_session</code></td><td>前端 → pi</td><td>180s</td><td>切换到指定会话</td></tr>
+<tr><td><code>get_state</code></td><td>前端 → pi</td><td>10s</td><td>获取当前状态（model/thinkingLevel/streaming 等）</td></tr>
+<tr><td><code>get_messages</code></td><td>前端 → pi</td><td>10s</td><td>获取当前会话消息列表</td></tr>
+<tr><td><code>get_session_stats</code></td><td>前端 → pi</td><td>10s</td><td>获取会话统计（token/cost/message 数）</td></tr>
+<tr><td><code>get_available_models</code></td><td>前端 → pi</td><td>10s</td><td>获取可用模型列表</td></tr>
+<tr><td><code>set_model</code></td><td>前端 → pi</td><td>180s</td><td>切换模型</td></tr>
+<tr><td><code>set_thinking_level</code></td><td>前端 → pi</td><td>10s</td><td>设置思考级别 (off/minimal/low/medium/high/xhigh)</td></tr>
+<tr><td><code>set_session_name</code></td><td>前端 → pi</td><td>10s</td><td>重命名当前会话</td></tr>
+</table>
+
+<h3 style="margin-top:28px;margin-bottom:16px;font-size:1.1rem">pi stdout 事件类型</h3>
+
+<table class="data-table">
+<tr><th>事件 type</th><th>分派目标</th><th>说明</th></tr>
+<tr><td><code>response</code></td><td>oneshot → send_command 调用方</td><td>RPC 响应，匹配请求 id</td></tr>
+<tr><td><code>agent_start</code></td><td>emit("pi-event")</td><td>Agent 周期开始</td></tr>
+<tr><td><code>agent_end</code></td><td>emit("pi-event")</td><td>Agent 周期结束</td></tr>
+<tr><td><code>turn_start / turn_end</code></td><td>emit("pi-event")</td><td>单轮对话边界</td></tr>
+<tr><td><code>message_start</code></td><td>emit("pi-event")</td><td>消息开始</td></tr>
+<tr><td><code>message_update</code></td><td>emit("pi-event")</td><td>流式增量更新（text_delta/thinking_delta/toolcall_delta）</td></tr>
+<tr><td><code>message_end</code></td><td>emit("pi-event")</td><td>消息结束</td></tr>
+<tr><td><code>tool_execution_start</code></td><td>emit("pi-event")</td><td>工具开始执行</td></tr>
+<tr><td><code>tool_execution_update</code></td><td>emit("pi-event")</td><td>工具执行中间结果</td></tr>
+<tr><td><code>tool_execution_end</code></td><td>emit("pi-event")</td><td>工具执行完成</td></tr>
+<tr><td><code>queue_update</code></td><td>emit("pi-event")</td><td>steering/followUp 队列更新</td></tr>
+<tr><td><code>compaction_start / compaction_end</code></td><td>emit("pi-event")</td><td>上下文压缩</td></tr>
+<tr><td><code>auto_retry_start / auto_retry_end</code></td><td>emit("pi-event")</td><td>自动重试</td></tr>
+<tr><td><code>extension_error</code></td><td>emit("pi-event")</td><td>扩展错误</td></tr>
+<tr><td><code>extension_ui_request</code></td><td>emit("pi-extension-ui-request")</td><td>扩展请求用户交互</td></tr>
+</table>
+
+<h3 style="margin-top:28px;margin-bottom:16px;font-size:1.1rem">Extension UI Request 方法</h3>
+
+<table class="data-table">
+<tr><th>method</th><th>前端处理</th><th>说明</th></tr>
+<tr><td><code>select</code></td><td>弹出选择对话框</td><td>选项列表，支持超时</td></tr>
+<tr><td><code>confirm</code></td><td>弹出确认对话框</td><td>是/否选择</td></tr>
+<tr><td><code>input</code></td><td>弹出输入对话框</td><td>文本输入</td></tr>
+<tr><td><code>editor</code></td><td>弹出编辑器对话框</td><td>多行文本编辑</td></tr>
+<tr><td><code>notify</code></td><td>addToast</td><td>通知提示（TPS 指标被过滤）</td></tr>
+<tr><td><code>setStatus</code></td><td>setExtensionStatus</td><td>状态栏文本</td></tr>
+<tr><td><code>setWidget</code></td><td>setExtensionWidget</td><td>自定义 widget</td></tr>
+<tr><td><code>setTitle</code></td><td>（暂不处理）</td><td>窗口标题</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2 class="section-title purple">4. 关键设计</h2>
+
+<div class="card-grid">
+
+<div class="card">
+<h3><span style="color:#6c8cff">&#9670;</span> 进程启动：pi --mode rpc</h3>
+<p>pi 进程以 RPC 模式启动，stdin/stdout 全部管道化，无终端交互。Windows 上用 <code>CREATE_NO_WINDOW</code> 隐藏控制台窗口。</p>
+<pre>// pi_process.rs
+cmd_builder.arg("--mode").arg("rpc")
+  .stdin(Stdio::piped())
+  .stdout(Stdio::piped())
+  .stderr(Stdio::piped())
+  .kill_on_drop(true);</pre>
+</div>
+
+<div class="card">
+<h3><span style="color:#f0a45d">&#9670;</span> 请求-响应匹配：oneshot channel</h3>
+<p>每个命令注册一个 oneshot channel，通过 id 匹配 response。stdout_reader_task 收到 response 后唤醒对应的 send_command。</p>
+<pre>// commands.rs
+let (tx, rx) = oneshot::channel();
+pending_commands.insert(id, tx);
+
+// 写入 stdin
+stdin.write_all(json).await;
+stdin.flush().await;
+
+// 等待响应（带超时）
+let response = timeout(duration, rx).await?;</pre>
+</div>
+
+<div class="card">
+<h3><span style="color:#56d4a0">&#9670;</span> 流式渲染：rAF 批量合并</h3>
+<p>高频的 text_delta 事件不直接触发 store 更新，而是通过 <code>requestAnimationFrame</code> 批量合并后一次性 applyBatchDeltas，减少 React 渲染次数。</p>
+<pre>// tauri.ts
+function queueMessageDelta(msgId, ci, field, delta) {
+  blockQueue[field] += delta;
+  if (!queuedMessageFrame) {
+    queuedMessageFrame = requestAnimationFrame(
+      flushQueuedMessageUpdates
+    );
+  }
+}
+
+// 单次 set() 完成所有 delta 追加
+useMessageStore.getState().applyBatchDeltas(updates);</pre>
+</div>
+
+<div class="card">
+<h3><span style="color:#c678dd">&#9670;</span> 气泡生命周期</h3>
+<p>assistant 消息气泡由 agent_start/agent_end 控制生命周期，而非 message_update 的 done 事件。因为 toolUse 停止后 agent 会继续下一轮。</p>
+<pre>agent_start → ensureAssistantMessage()
+  → message_update (text/toolcall 循环)
+  → message_update done(reason="toolUse")
+  → 继续下一轮... (不关闭气泡)
+agent_end → completeMessage()</pre>
+</div>
+
+<div class="card">
+<h3><span style="color:#e06c75">&#9670;</span> 进程健康与自动重启</h3>
+<p>stdout EOF 时 Rust 清理全部状态并通知前端。前端监听 pi-process-exit 事件，1 秒后尝试自动重启。</p>
+<pre>// stdout_reader_task (EOF)
+stdin = None;  child = None;
+pending.drain() → "pi process exited"
+emit("pi-process-exit", {reason:"eof"})
+
+// 前端
+listen("pi-process-exit", async () => {
+  await sleep(1000);
+  await startPi();  // 自动重启
+});</pre>
+</div>
+
+<div class="card">
+<h3><span style="color:#dea584">&#9670;</span> 超时策略</h3>
+<p>不同类型的命令有不同的超时时长，避免轻量命令被长时间阻塞，也允许 prompt 等命令有足够等待时间。</p>
+<pre>fn command_timeout(cmd_type: &str) -> Duration {
+  match cmd_type {
+    "prompt" | "new_session"
+    | "switch_session" | "set_model"
+      => 180s,
+    "get_state" | "get_messages"
+    | "get_available_models"
+      => 10s,
+    _ => 30s,
+  }
+}</pre>
+</div>
+
+<div class="card">
+<h3><span style="color:#6c8cff">&#9670;</span> pi 可用性检测</h3>
+<p>启动时按优先级检测 pi：用户指定路径 → 配置文件路径 → 自动查找 (scoop/npm/where) → PATH。同时检测 bash 可用性（Windows 特有）。</p>
+<pre>1. 用户本次传入的路径
+2. config.json 中的 pi_path
+3. 自动查找:
+   - $SCOOP/apps/pi-coding-agent/current/pi.exe
+   - ~/AppData/Roaming/npm/pi.cmd
+   - where pi
+4. PATH 中的 pi/pi.cmd/pi.exe</pre>
+</div>
+
+<div class="card">
+<h3><span style="color:#56d4a0">&#9670;</span> 会话扫描</h3>
+<p>Rust 扫描 ~/.pi/agent/sessions/ 目录，解析 JSONL 文件提取 session_info（name/pinned），5 秒 TTL 缓存。前端侧边栏展示 Project → Session 两级结构。</p>
+<pre>~/.pi/agent/sessions/
+  --E--workspace-github-pi_desktop--/
+    session-abc123.jsonl
+    session-def456.jsonl
+
+decode: --E--workspace-...-- → E:\workspace\...
+</pre>
+</div>
+
+<div class="card">
+<h3><span style="color:#f0a45d">&#9670;</span> 配置持久化</h3>
+<p>应用配置保存到 ~/.config/pi-desktop/config.json。前端通过防抖 (300ms) 调用 set_app_config 持久化 UI 偏好。</p>
+<pre>AppConfig {
+  window: { x, y, width, height, maximized },
+  sidebar_width, sidebar_collapsed,
+  properties_panel_open,
+  theme, font_family, font_size,
+  last_session, pi_path,
+}</pre>
+</div>
+
+</div>
+</div>
+
+<div class="section">
+<h2 class="section-title green">5. 文件结构</h2>
+
+<div class="card-grid">
+
+<div class="card">
+<h3>Rust 后端 (src-tauri/src/)</h3>
+<table class="data-table">
+<tr><th>文件</th><th>职责</th></tr>
+<tr><td><code>lib.rs</code></td><td>应用入口、AppState 定义、Tauri Builder 配置</td></tr>
+<tr><td><code>commands.rs</code></td><td>全部 Tauri Commands (send_command/start_pi/stop_pi/config 等)</td></tr>
+<tr><td><code>pi_process.rs</code></td><td>pi 子进程启动 + stdout_reader_task</td></tr>
+<tr><td><code>pi_check.rs</code></td><td>pi/bash 可用性检测 + 路径查找</td></tr>
+<tr><td><code>sessions.rs</code></td><td>会话扫描 (Project → Session) + 路径解码</td></tr>
+<tr><td><code>config.rs</code></td><td>AppConfig 持久化 (load/save)</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h3>React 前端 (src/)</h3>
+<table class="data-table">
+<tr><th>路径</th><th>职责</th></tr>
+<tr><td><code>services/tauri.ts</code></td><td>API 封装 (sendCommand/checkPi/startPi 等) + EventConsumer + initializeApp</td></tr>
+<tr><td><code>stores/uiStore.ts</code></td><td>UIStore: 面板/主题/pi状态/通知/扩展对话框</td></tr>
+<tr><td><code>stores/sessionStore.ts</code></td><td>SessionStore: 会话/模型/流式状态</td></tr>
+<tr><td><code>stores/messageStore.ts</code></td><td>MessageStore: 消息气泡/流式文本/工具调用</td></tr>
+<tr><td><code>types/rpc.ts</code></td><td>全部 RPC 协议类型定义 (事件/命令/响应/UI 类型)</td></tr>
+<tr><td><code>components/</code></td><td>React 组件 (ChatPanel/Sidebar/MessageInput 等)</td></tr>
+<tr><td><code>hooks/</code></td><td>自定义 React hooks</td></tr>
+</table>
+</div>
+
+</div>
+</div>
+
+
+</div>
+</body>
+</html>

@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { IconChevronRight, IconBrain } from '../shared/Icons';
 
 interface Props {
@@ -8,25 +8,45 @@ interface Props {
 
 function ThinkingBlock({ thinking, isStreaming }: Props) {
   const [expanded, setExpanded] = useState(isStreaming);
-  const wordCount = thinking.length;
+  const characterCount = thinking.length;
+  const preview = useMemo(() => {
+    const compact = thinking.replace(/\s+/g, ' ').trim();
+    if (!compact) return isStreaming ? '正在组织思路...' : '没有思考内容';
+    return compact.length > 90 ? `${compact.slice(0, 90)}...` : compact;
+  }, [thinking, isStreaming]);
 
   return (
-    <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/60 dark:border-gray-700 dark:bg-gray-900/40">
+    <div className={`thinking-card ${isStreaming ? 'thinking-card-streaming' : ''}`}>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-xs text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+        className="thinking-card-header"
       >
-        <span className={`inline-block transition-transform ${expanded ? 'rotate-90' : ''}`}>
+        <span className={`thinking-chevron ${expanded ? 'rotate-90' : ''}`}>
           <IconChevronRight className="w-2.5 h-2.5" />
         </span>
-        <IconBrain className="w-3 h-3" />
-        <span className="font-medium">思考</span>
-        <span className="text-xxs text-gray-400">{wordCount.toLocaleString()} 字符</span>
-        </button>
+        <span className="thinking-icon">
+          <IconBrain className="w-3 h-3" />
+        </span>
+        <span className="thinking-title">{isStreaming ? '正在思考' : '思考过程'}</span>
+        {isStreaming && (
+          <span className="thinking-dots" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+        )}
+        <span className="thinking-count">{characterCount.toLocaleString()} 字符</span>
+      </button>
+
+      {!expanded && (
+        <div className="thinking-preview">
+          {preview}
+        </div>
+      )}
 
       {expanded && (
-        <div className="border-t border-dashed border-gray-200 px-3 py-2 dark:border-gray-700">
-          <p className="whitespace-pre-wrap border-l-2 border-gray-200 pl-3 font-mono text-xxs leading-relaxed text-gray-500 dark:border-gray-700 dark:text-gray-400">
+        <div className="thinking-content">
+          <p>
             {thinking}
           </p>
         </div>

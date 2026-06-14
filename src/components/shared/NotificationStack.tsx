@@ -17,7 +17,7 @@ export default function NotificationStack() {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`px-3 py-2 rounded-lg shadow-lg text-xs flex items-center gap-2 animate-in slide-in-from-right ${levelStyles[toast.level]}`}
+          className={`px-3 py-2 rounded-lg shadow-md text-xs flex items-center gap-2 animate-slide-in-right ${levelStyles[toast.level]}`}
         >
           <span className="flex-1">{toast.message}</span>
           <button

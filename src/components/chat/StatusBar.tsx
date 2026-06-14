@@ -14,18 +14,18 @@ export default function StatusBar() {
   const contextPercent = stats?.contextUsage?.percent ?? null;
 
   const contextBarColor = useMemo(() => {
-    if (contextPercent === null) return 'bg-gray-300 dark:bg-gray-600';
+    if (contextPercent === null) return 'bg-[var(--border-hover)]';
     if (contextPercent > 95) return 'bg-red-500';
     if (contextPercent > 80) return 'bg-yellow-500';
-    return 'bg-blue-500';
+    return 'bg-[var(--accent)]';
   }, [contextPercent]);
 
   return (
-    <div className="mx-auto flex min-h-[24px] w-full max-w-4xl flex-shrink-0 items-center gap-3 px-5 pb-2.5 text-[10px] text-gray-400/50 dark:text-gray-500/50 sm:px-7 lg:px-8">
+    <div className="mx-auto flex min-h-[22px] w-full max-w-4xl flex-shrink-0 items-center gap-3 px-5 pb-2 text-[10px] text-[var(--fg-subtle)] sm:px-7 lg:px-8">
       {/* 模型信息 */}
       {model && (
         <span className="flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
           {model.name}
         </span>
       )}
@@ -38,7 +38,7 @@ export default function StatusBar() {
       {/* 上下文进度条 */}
       {contextPercent !== null && (
         <span className="flex items-center gap-1">
-          <span className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+          <span className="h-1.5 w-12 overflow-hidden rounded-full bg-[var(--border-color)]">
             <span
               className={`block h-full rounded-full transition-all ${contextBarColor}`}
               style={{ width: `${Math.min(contextPercent, 100)}%` }}
@@ -50,8 +50,8 @@ export default function StatusBar() {
 
       {/* 状态文字 */}
       {isStreaming && (
-        <span className="text-blue-500 flex items-center gap-1">
-          <span className="inline-block w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
+        <span className="flex items-center gap-1 text-[var(--accent)]">
+          <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-[var(--accent)]" />
           生成中...
         </span>
       )}

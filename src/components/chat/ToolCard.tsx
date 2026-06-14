@@ -57,11 +57,11 @@ function ToolCard({ block }: Props) {
   };
 
   return (
-    <section className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <section className="min-w-0 overflow-hidden rounded-lg border border-[var(--border-color)] bg-[var(--surface-bg)]">
       <button
         type="button"
         onClick={() => setExpanded((value) => !value)}
-        className="flex w-full items-start gap-2 px-3 py-2.5 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/60"
+        className="flex w-full items-start gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[var(--hover-bg)]"
       >
         <span className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center ${statusTone[status]}`}>
           {statusIcon[status]}
@@ -69,25 +69,25 @@ function ToolCard({ block }: Props) {
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-2">
             <ToolGlyph toolKind={toolKind} />
-            <span className="font-mono text-xs font-semibold text-gray-800 dark:text-gray-200">{toolName}</span>
-            {status === 'running' && <span className="text-xxs text-blue-500">运行中</span>}
+            <span className="font-mono text-xs font-semibold text-[var(--fg-color)]">{toolName}</span>
+            {status === 'running' && <span className="text-xxs text-[var(--accent)]">运行中</span>}
             {block.duration !== undefined && status === 'success' && (
-              <span className="text-xxs text-gray-400">{(block.duration / 1000).toFixed(1)}s</span>
+              <span className="text-xxs text-[var(--fg-subtle)]">{(block.duration / 1000).toFixed(1)}s</span>
             )}
           </span>
           {summary && (
-            <span className="mt-0.5 block truncate font-mono text-xxs text-gray-500 dark:text-gray-400">
+            <span className="mt-0.5 block truncate font-mono text-xxs text-[var(--fg-muted)]">
               {summary}
             </span>
           )}
         </span>
-        <span className={`mt-1 flex-shrink-0 text-gray-400 transition-transform ${expanded ? 'rotate-90' : ''}`}>
+        <span className={`mt-1 flex-shrink-0 text-[var(--fg-subtle)] transition-transform ${expanded ? 'rotate-90' : ''}`}>
           <IconChevronRight className="h-3 w-3" />
         </span>
       </button>
 
       {expanded && (
-        <div className="border-t border-gray-200 px-3 py-3 dark:border-gray-700">
+        <div className="animate-slide-up overflow-x-auto border-t border-[var(--border-color)] bg-[var(--panel-bg)]/45 px-3 py-3">
           {renderCallPreview(toolKind, args, renderedArgs, hasArgs)}
           {hasResult && (
             <div className={hasArgs ? 'mt-3' : ''}>
@@ -102,12 +102,12 @@ function ToolCard({ block }: Props) {
 
 function ToolGlyph({ toolKind }: { toolKind: string }) {
   if (toolKind.includes('bash') || toolKind === 'shell') {
-    return <IconTerminal className="h-3.5 w-3.5 text-gray-400" />;
+    return <IconTerminal className="h-3.5 w-3.5 text-[var(--fg-muted)]" />;
   }
   if (toolKind.includes('edit') || toolKind.includes('write')) {
-    return <IconEdit className="h-3.5 w-3.5 text-gray-400" />;
+    return <IconEdit className="h-3.5 w-3.5 text-[var(--fg-muted)]" />;
   }
-  return <span className="h-1.5 w-1.5 rounded-full bg-gray-300 dark:bg-gray-600" />;
+  return <span className="h-1.5 w-1.5 rounded-full bg-[var(--border-hover)]" />;
 }
 
 function renderCallPreview(toolKind: string, args: ToolArgs, renderedArgs: string, hasArgs: boolean) {
@@ -178,7 +178,7 @@ const TerminalBlock = memo(function TerminalBlock({ text, prompt = false, error 
     <pre className={`max-h-80 overflow-auto rounded-lg border px-3 py-2 font-mono text-xs leading-relaxed ${
       error
         ? 'border-red-200/60 bg-red-50 text-red-800 dark:border-red-800/40 dark:bg-red-950/30 dark:text-red-200'
-        : 'border-gray-200/60 bg-gray-50 text-gray-800 dark:border-gray-700/60 dark:bg-gray-900 dark:text-gray-200'
+        : 'border-[var(--border-color)] bg-[var(--raised-bg)] text-[var(--fg-muted)]'
     }`}>
       {prompt ? <><span className="select-none text-gray-400 mr-1.5">$</span>{text}</> : text || ' '}
     </pre>
@@ -187,7 +187,7 @@ const TerminalBlock = memo(function TerminalBlock({ text, prompt = false, error 
 
 const CodeBlock = memo(function CodeBlock({ text }: { text: string }) {
   return (
-    <pre className="max-h-96 overflow-auto rounded-lg border border-gray-200/60 bg-[#fafbfc] px-3 py-2 font-mono text-xs leading-relaxed text-gray-800 dark:border-gray-700/60 dark:bg-gray-900 dark:text-gray-200">
+    <pre className="max-h-96 overflow-auto rounded-lg border border-[var(--border-color)] bg-[var(--raised-bg)] px-3 py-2 font-mono text-xs leading-relaxed text-[var(--fg-muted)]">
       {text || ' '}
     </pre>
   );
@@ -197,7 +197,7 @@ const DiffBlock = memo(function DiffBlock({ text }: { text: string }) {
   const lines = useMemo(() => text.split('\n'), [text]);
 
   return (
-    <pre className="max-h-96 overflow-auto rounded-lg border border-gray-200/60 bg-[#f6f8fa] px-3 py-2 font-mono text-xs leading-relaxed dark:border-gray-700/60 dark:bg-[#161b22]">
+    <pre className="max-h-96 overflow-auto rounded-lg border border-[var(--border-color)] bg-[var(--raised-bg)] px-3 py-2 font-mono text-xs leading-relaxed">
       {lines.map((line, index) => (
         <div key={index} className={getDiffLineClass(line)}>
           {line || ' '}
@@ -211,9 +211,9 @@ const ListOutput = memo(function ListOutput({ text, error }: { text: string; err
   const lines = useMemo(() => text.split('\n').filter(Boolean), [text]);
   if (lines.length === 0) return <PlainOutput text={error ? '无结果' : '无输出'} error={error} />;
   return (
-    <div className="max-h-80 overflow-auto rounded-lg border border-gray-200/60 bg-gray-50 py-1 dark:border-gray-700/60 dark:bg-gray-900">
+    <div className="max-h-80 overflow-auto rounded-lg border border-[var(--border-color)] bg-[var(--raised-bg)] py-1">
       {lines.map((line, index) => (
-        <div key={index} className="border-b border-gray-200/40 px-3 py-1 font-mono text-xxs text-gray-700 last:border-b-0 dark:border-gray-800/60 dark:text-gray-300">
+        <div key={index} className="border-b border-[var(--border-color)] px-3 py-1 font-mono text-xxs text-[var(--fg-muted)] last:border-b-0">
           {line}
         </div>
       ))}
@@ -226,7 +226,7 @@ const PlainOutput = memo(function PlainOutput({ text, error }: { text: string; e
     <div className={`whitespace-pre-wrap rounded-lg border px-3 py-2 text-xs leading-relaxed ${
       error
         ? 'border-red-200/60 bg-red-50 text-red-800 dark:border-red-800/40 dark:bg-red-950/20 dark:text-red-200'
-        : 'border-gray-200/60 bg-gray-50 text-gray-700 dark:border-gray-700/60 dark:bg-gray-900 dark:text-gray-300'
+        : 'border-[var(--border-color)] bg-[var(--raised-bg)] text-[var(--fg-muted)]'
     }`}>
       {text}
     </div>
@@ -280,16 +280,16 @@ function getDiffLineClass(line: string): string {
   if (line.startsWith('+') && !line.startsWith('+++')) return 'text-green-700 dark:text-green-300';
   if (line.startsWith('-') && !line.startsWith('---')) return 'text-red-700 dark:text-red-300';
   if (line.startsWith('@@')) return 'text-blue-600 dark:text-blue-300';
-  if (line.startsWith('diff ') || line.startsWith('---') || line.startsWith('+++')) return 'text-gray-500 dark:text-gray-400';
-  return 'text-gray-700 dark:text-gray-300';
+  if (line.startsWith('diff ') || line.startsWith('---') || line.startsWith('+++')) return 'text-[var(--fg-subtle)]';
+  return 'text-[var(--fg-muted)]';
 }
 
 const CallPreviewPath = memo(function CallPreviewPath({ action, path }: { action: string; path: string }) {
   return (
-    <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-950">
+    <div className="rounded-md border border-[var(--border-color)] bg-[var(--raised-bg)] px-3 py-2">
       <div className="flex items-center gap-2 font-mono text-xs">
-        <span className="text-gray-400 dark:text-gray-500">{action}</span>
-        <span className="text-gray-700 dark:text-gray-300 truncate">{path || '(无路径)'}</span>
+        <span className="text-[var(--fg-subtle)]">{action}</span>
+        <span className="text-[var(--fg-muted)] truncate">{path || '(无路径)'}</span>
       </div>
     </div>
   );
@@ -297,7 +297,7 @@ const CallPreviewPath = memo(function CallPreviewPath({ action, path }: { action
 
 const CallPreviewArgs = memo(function CallPreviewArgs({ renderedArgs }: { renderedArgs: string }) {
   return (
-    <pre className="max-h-36 overflow-auto rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xxs text-gray-600 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400">
+    <pre className="max-h-36 overflow-auto rounded-md border border-[var(--border-color)] bg-[var(--raised-bg)] px-3 py-2 font-mono text-xxs text-[var(--fg-muted)]">
       {renderedArgs}
     </pre>
   );

@@ -33,14 +33,14 @@ export default function PropertiesPanel() {
   const pendingCount = pendingMessageCount || steeringQueue.length + followUpQueue.length;
 
   return (
-    <aside className="h-full overflow-y-auto bg-[#fbfbfa] text-xs text-gray-700 dark:bg-[#171717] dark:text-gray-300">
-      <div className="sticky top-0 z-10 border-b border-gray-200/70 bg-[#fbfbfa]/95 px-3 py-3 backdrop-blur dark:border-gray-800 dark:bg-[#171717]/95">
+    <aside className="h-full overflow-y-auto bg-[var(--panel-bg)] text-xs text-[var(--fg-muted)]">
+      <div className="sticky top-0 z-10 border-b border-[var(--border-color)] bg-[var(--panel-bg)]/95 px-3 py-3 backdrop-blur">
         <div className="flex items-center gap-2">
-          <h2 className="min-w-0 flex-1 text-sm font-semibold text-gray-900 dark:text-gray-100">Review</h2>
+          <h2 className="min-w-0 flex-1 text-sm font-semibold text-[var(--fg-color)]">Review</h2>
           <span className={statusClass(isStreaming, isCompacting)}>{runningLabel}</span>
           <button
             onClick={toggleProperties}
-            className="flex h-6 w-6 items-center justify-center rounded-md text-gray-400 hover:bg-gray-200/70 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+            className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--fg-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)]"
             title="Close review"
           >
             <CloseIcon />

@@ -1,7 +1,7 @@
 //! Tauri Commands — 前端 invoke 接口
 
 use crate::config::{self, AppConfig};
-use crate::pi_check::{find_pi, PiCheckResult};
+use crate::pi_check::PiCheckResult;
 use crate::pi_process::spawn_pi_and_reader;
 use crate::sessions::{decode_project_path, scan_projects, ProjectMeta};
 use serde::Serialize;
@@ -33,8 +33,26 @@ pub struct GitChanges {
 // ============================================================
 
 #[tauri::command]
-pub async fn check_pi_available() -> Result<PiCheckResult, String> {
-    Ok(find_pi())
+pub async fn check_pi_available(
+    state: tauri::State<'_, crate::AppState>,
+    pi_path: Option<String>,
+) -> Result<PiCheckResult, String> {
+    let explicit_path = pi_path.filter(|path| !path.trim().is_empty());
+    if let Some(path) = explicit_path.clone() {
+        let mut config = state.config.lock().await;
+        config.pi_path = Some(path);
+        let saved_config = config.clone();
+        drop(config);
+        let _ = config::save_config(&saved_config);
+    }
+
+    let configured_path = {
+        let config = state.config.lock().await;
+        config.pi_path.clone()
+    };
+    let preferred_path = explicit_path.or(configured_path);
+
+    Ok(crate::pi_check::find_pi_with_path(preferred_path.as_deref()))
 }
 
 #[tauri::command]
@@ -232,7 +250,12 @@ pub async fn start_pi(
         return Ok(());
     }
 
-    match spawn_pi_and_reader(app_handle, state.pending_commands.clone()).await {
+    let configured_path = {
+        let config = state.config.lock().await;
+        config.pi_path.clone()
+    };
+
+    match spawn_pi_and_reader(app_handle, state.pending_commands.clone(), configured_path).await {
         Ok((stdin_writer, child)) => {
             let mut stdin_lock = state.stdin.lock().await;
             *stdin_lock = Some(stdin_writer);
@@ -417,11 +440,17 @@ fn uuid_simple() -> String {
 }
 
 fn run_git(cwd: &Path, args: &[&str]) -> Result<String, String> {
-    let output = Command::new("git")
-        .args(args)
-        .current_dir(cwd)
-        .output()
-        .map_err(|e| format!("无法执行 git: {}", e))?;
+    let mut cmd = Command::new("git");
+    cmd.args(args).current_dir(cwd);
+
+    // Windows: 隐藏控制台窗口，避免每次调用 git 弹出命令框
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+
+    let output = cmd.output().map_err(|e| format!("无法执行 git: {}", e))?;
 
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr).trim().to_string();

@@ -11,17 +11,25 @@ use tokio::sync::{oneshot, Mutex};
 pub async fn spawn_pi_and_reader(
     app_handle: AppHandle,
     pending_commands: Arc<Mutex<HashMap<String, oneshot::Sender<Value>>>>,
+    configured_path: Option<String>,
 ) -> Result<(BufWriter<tokio::process::ChildStdin>, tokio::process::Child), String> {
-    let pi_candidates: &[&str] = if cfg!(target_os = "windows") {
-        &["pi", "pi.cmd", "pi.exe"]
-    } else {
-        &["pi"]
-    };
+    let check = crate::pi_check::find_pi_with_path(configured_path.as_deref());
+    if !check.pi_available {
+        return Err(if check.errors.is_empty() {
+            "无法启动 pi 进程: 未检测到 pi".to_string()
+        } else {
+            format!("无法启动 pi 进程: {}", check.errors.join("; "))
+        });
+    }
+
+    let pi_path = check
+        .pi_path
+        .ok_or_else(|| "无法启动 pi 进程: pi 路径为空".to_string())?;
 
     let mut last_err = String::new();
     let mut child = None;
 
-    for cmd in pi_candidates {
+    for cmd in [pi_path.as_str()] {
         let mut cmd_builder = tokio::process::Command::new(cmd);
         cmd_builder
             .arg("--mode")
@@ -34,6 +42,7 @@ pub async fn spawn_pi_and_reader(
         // Windows: 隐藏控制台窗口
         #[cfg(target_os = "windows")]
         {
+            #[allow(unused_imports)]
             use std::os::windows::process::CommandExt;
             cmd_builder.creation_flags(0x08000000); // CREATE_NO_WINDOW
         }

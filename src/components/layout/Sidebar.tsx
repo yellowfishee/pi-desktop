@@ -29,10 +29,6 @@ type ProjectTreeItem = {
   projectMatched: boolean;
 };
 
-type TimeGroup = {
-  label: string;
-  sessions: SessionMeta[];
-};
 
 export default function Sidebar() {
   const projects = useSessionStore((s) => s.projects);
@@ -84,36 +80,6 @@ export default function Sidebar() {
       })
       .filter((item) => item.projectMatched || item.sessions.length > 0);
   }, [projects, searchQuery]);
-
-  // 按时间分组会话
-  const groupSessionsByTime = (sessions: SessionMeta[]): TimeGroup[] => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today.getTime() - 86400000);
-    const weekAgo = new Date(today.getTime() - 7 * 86400000);
-
-    const groups: TimeGroup[] = [
-      { label: '今天', sessions: [] },
-      { label: '昨天', sessions: [] },
-      { label: '本周', sessions: [] },
-      { label: '更早', sessions: [] },
-    ];
-
-    for (const session of sessions) {
-      const ts = new Date(session.timestamp);
-      if (ts >= today) {
-        groups[0].sessions.push(session);
-      } else if (ts >= yesterday) {
-        groups[1].sessions.push(session);
-      } else if (ts >= weekAgo) {
-        groups[2].sessions.push(session);
-      } else {
-        groups[3].sessions.push(session);
-      }
-    }
-
-    return groups.filter((g) => g.sessions.length > 0);
-  };
 
   // ── Handlers ──────────────────────────────────────────────
 
@@ -438,7 +404,7 @@ export default function Sidebar() {
           })
         ) : (
           <div className="sidebar-empty">
-            <IconFolder className="w-8 h-8 text-gray-300 dark:text-gray-600 mb-2" />
+            <IconFolder className="w-8 h-8 text-[var(--fg-subtle)] mb-2" />
             <p>{searchQuery.trim() ? '无匹配项目或会话' : '暂无项目'}</p>
           </div>
         )}
@@ -533,7 +499,7 @@ function ProjectTree({
   const yesterday = new Date(today.getTime() - 86400000);
   const weekAgo = new Date(today.getTime() - 7 * 86400000);
 
-  const groups: TimeGroup[] = [
+  const groups: { label: string; sessions: SessionMeta[] }[] = [
     { label: '今天', sessions: [] },
     { label: '昨天', sessions: [] },
     { label: '本周', sessions: [] },

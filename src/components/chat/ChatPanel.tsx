@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, useCallback } from 'react';
+import { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { useMessageStore } from '../../stores/messageStore';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -21,12 +21,14 @@ export default function ChatPanel() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
   const scrollFrameRef = useRef<number | null>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     shouldAutoScrollRef.current = distanceFromBottom < 120;
+    setShowScrollButton(distanceFromBottom > 200);
   }, []);
 
   useEffect(() => {
@@ -47,16 +49,22 @@ export default function ChatPanel() {
     };
   }, [messages, isStreaming]);
 
+  const scrollToBottom = useCallback(() => {
+    shouldAutoScrollRef.current = true;
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setShowScrollButton(false);
+  }, []);
+
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-[#1e1e2e] relative">
+    <div className="relative flex h-full flex-col bg-[var(--panel-bg)]">
       {/* 悬浮按钮 — 左侧 */}
-      <div className="absolute top-3 left-5 z-20 flex items-center gap-1">
+      <div className="absolute left-4 top-3 z-20 flex items-center gap-1">
         <button onClick={toggleSidebar} className="btn-icon" title={sidebarCollapsed ? '展开侧边栏' : '折叠侧边栏'}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sidebarCollapsed ? "M10 19l-7-7 7-7m8 14l-7-7 7-7" : "M14 5l7 7-7 7M5 5l7 7-7 7"} /></svg>
         </button>
       </div>
       {/* 悬浮按钮 — 右侧 */}
-      <div className="absolute top-3 right-5 z-20 flex items-center gap-1">
+      <div className="absolute right-4 top-3 z-20 flex items-center gap-1">
         <button onClick={() => setChangesOpen(!changesOpen)} className={`btn-icon ${changesOpen ? 'btn-icon-active' : ''}`} title="变更">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
         </button>
@@ -69,7 +77,7 @@ export default function ChatPanel() {
       </div>
       <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
         {sessionLoading ? (
-          <div className="flex items-center justify-center h-full text-gray-400/70 dark:text-gray-500">
+          <div className="flex h-full items-center justify-center text-[var(--fg-subtle)]">
             <div className="flex items-center gap-2 text-sm">
               <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -79,14 +87,14 @@ export default function ChatPanel() {
             </div>
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-400/70 dark:text-gray-500 text-sm">
+          <div className="flex h-full items-center justify-center text-sm text-[var(--fg-subtle)]">
             <div className="text-center">
-              <IconPi className="w-16 h-16 text-blue-500/30 mb-3" />
-              <p className="text-gray-400/60 dark:text-gray-500/60">开始一段新的对话</p>
+              <IconPi className="mx-auto mb-3 h-14 w-14 text-[var(--accent)] opacity-35" />
+              <p className="text-[var(--fg-subtle)]">开始一段新的对话</p>
             </div>
           </div>
         ) : (
-          <div className="mx-auto w-full max-w-4xl px-5 pt-6 pb-8 sm:px-7 lg:px-8">
+          <div className="mx-auto w-full max-w-4xl overflow-x-hidden px-5 pb-8 pt-8 sm:px-7 lg:px-8">
             {messages.map((msg) => (
               <MessageBubble key={msg.id} message={msg} />
             ))}
@@ -95,9 +103,24 @@ export default function ChatPanel() {
         <div ref={bottomRef} />
       </div>
 
+      {/* "回到底部" 浮动按钮 */}
+      {showScrollButton && (
+        <div className="absolute bottom-[110px] left-1/2 -translate-x-1/2 z-20 animate-slide-up">
+          <button
+            onClick={scrollToBottom}
+            className="flex items-center gap-1.5 rounded-full border border-[var(--border-color)] bg-[var(--surface-bg)] px-3 py-1.5 text-xs text-[var(--fg-muted)] shadow-md hover:border-[var(--border-hover)] hover:text-[var(--fg-color)] transition-all"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+            </svg>
+            回到底部
+          </button>
+        </div>
+      )}
+
       {/* 输入区域 — 带渐变遮罩分隔 */}
       <div className="relative flex-shrink-0">
-        <div className="absolute inset-x-0 -top-6 h-6 bg-gradient-to-t from-white to-transparent dark:from-surface-dark pointer-events-none" />
+        <div className="pointer-events-none absolute inset-x-0 -top-8 h-8 bg-gradient-to-t from-[var(--panel-bg)] to-transparent" />
         <div className="mx-auto w-full max-w-4xl px-5 sm:px-7 lg:px-8">
           <MessageInput />
         </div>
