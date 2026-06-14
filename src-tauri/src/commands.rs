@@ -176,7 +176,8 @@ pub async fn rename_session_file(
             .as_nanos()
     );
 
-    eprintln!("[rename_session_file] session_path: {}, name: {}, pinned: {:?}", session_path, name, pinned);
+    eprintln!("[rename_session_file] called with: session_path={}, name='{}', pinned={:?}", session_path, name, pinned);
+    eprintln!("[rename_session_file] file exists: {}", std::path::Path::new(&session_path).exists());
 
     for line in &mut lines {
         if let Ok(mut val) = serde_json::from_str::<Value>(line) {
