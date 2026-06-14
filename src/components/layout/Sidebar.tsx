@@ -302,22 +302,10 @@ export default function Sidebar() {
     }
   };
 
-  const handleExportHtml = async (filePath: string) => {
+  const handleExportHtml = async (_filePath: string) => {
     setContextMenu(null);
     try {
-      // 先切换到该会话再导出
-      const currentFile = useSessionStore.getState().activeSessionFile;
-      if (currentFile !== filePath) {
-        useMessageStore.getState().clearMessages();
-        useSessionStore.getState().setSessionLoading(true);
-        const rawMessages = await readSessionMessages(filePath);
-        useMessageStore.getState().setMessages(
-          rawMessages.map((m: any) => ({ ...m, isComplete: true, content: m.content || [] })),
-        );
-        useSessionStore.getState().setActiveSession(sessionIdFromPath(filePath), filePath);
-        await sendCommand({ type: 'switch_session', sessionPath: filePath });
-        useSessionStore.getState().setSessionLoading(false);
-      }
+      // 直接导出当前活跃会话（pi export_html 作用于当前 session）
       const result = await sendCommand({ type: 'export_html' });
       if (result.success && result.data) {
         const outPath = (result.data as any).path || (result.data as any).outputPath;
@@ -327,10 +315,13 @@ export default function Sidebar() {
           addToast({ level: 'info', message: '导出成功' });
         }
       } else {
-        // pi 主题兼容：如果提示 theme not found，建议升级 pi
         const errMsg = result.error || '未知错误';
         if (errMsg.includes('Theme not found')) {
-          addToast({ level: 'warning', message: `导出失败: pi CLI 版本不支持当前主题，请升级 pi 或运行 \`pi themes\` 查看可用主题`, duration: 8000 });
+          addToast({
+            level: 'warning',
+            message: `导出失败: 主题不可用。请在终端运行 \`pi config set theme default\` 后重试`,
+            duration: 8000,
+          });
         } else {
           addToast({ level: 'error', message: `导出失败: ${errMsg}` });
         }
