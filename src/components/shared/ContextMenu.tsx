@@ -25,7 +25,7 @@ export default function ContextMenu({ x, y, onClose, children }: Props) {
 
   return (
     <>
-      <div className="fixed inset-0 z-40" onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }} />
+      <div className="fixed inset-0 z-40" onClick={onClose} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }} />
       <div
         ref={ref}
         className="fixed z-50 min-w-[140px] overflow-hidden rounded-lg border border-[var(--border-color)] bg-[var(--surface-bg)] shadow-xl animate-scale-in"

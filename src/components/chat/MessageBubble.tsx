@@ -220,7 +220,7 @@ function UserBubble({ message }: Props) {
   return (
     <article
       className="group mb-7 flex flex-col items-end"
-      onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY }); }}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ x: e.clientX, y: e.clientY }); }}
     >
       {/* 右键菜单 */}
       {ctxMenu && (
@@ -385,7 +385,7 @@ function AssistantBubble({ message }: Props) {
   return (
     <article
       className="mb-6"
-      onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY }); }}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setCtxMenu({ x: e.clientX, y: e.clientY }); }}
     >
       {ctxMenu && (
         <ContextMenu x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)}>

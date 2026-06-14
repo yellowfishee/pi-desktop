@@ -576,7 +576,7 @@ function ProjectTree({
   return (
     <div className="sidebar-project">
       <div
-        onContextMenu={(e) => onProjectContextMenu(e, project.name, project.dir_name)}
+        onContextMenu={(e) => { e.stopPropagation(); onProjectContextMenu(e, project.name, project.dir_name); }}
         className={`sidebar-project-header ${activeProject ? 'sidebar-project-active' : ''}`}
       >
         <button onClick={onToggle} className="sidebar-project-toggle" title={expanded ? '折叠' : '展开'}>
@@ -606,7 +606,7 @@ function ProjectTree({
                   session={session}
                   active={activeSessionFile === session.file_path}
                   onClick={() => onSwitchSession(session.file_path)}
-                  onContextMenu={(event) => onSessionContextMenu(event, session.file_path)}
+                  onContextMenu={(event) => { event.stopPropagation(); onSessionContextMenu(event, session.file_path); }}
                   onRename={() => onRename(session.file_path)}
                   onTogglePin={() => onTogglePin(session.file_path)}
                 />
@@ -624,7 +624,7 @@ function ProjectTree({
                   session={session}
                   active={activeSessionFile === session.file_path}
                   onClick={() => onSwitchSession(session.file_path)}
-                  onContextMenu={(event) => onSessionContextMenu(event, session.file_path)}
+                  onContextMenu={(event) => { event.stopPropagation(); onSessionContextMenu(event, session.file_path); }}
                   onRename={() => onRename(session.file_path)}
                   onTogglePin={() => onTogglePin(session.file_path)}
                 />
@@ -658,7 +658,7 @@ function SessionRow({
   return (
     <div
       className={`sidebar-session ${active ? 'sidebar-session-active' : ''}`}
-      onContextMenu={onContextMenu}
+      onContextMenu={(e) => { e.stopPropagation(); onContextMenu(e); }}
     >
       <button onClick={onClick} className="sidebar-session-btn">
         <div className="sidebar-session-dot" />

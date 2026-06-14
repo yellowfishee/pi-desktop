@@ -15,6 +15,14 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 function App() {
   useKeyboardShortcuts();
+
+  // 禁用浏览器默认右键菜单
+  useEffect(() => {
+    const handler = (e: MouseEvent) => e.preventDefault();
+    document.addEventListener('contextmenu', handler);
+    return () => document.removeEventListener('contextmenu', handler);
+  }, []);
+
   const piAvailable = useUIStore((s) => s.piAvailable);
   const bashAvailable = useUIStore((s) => s.bashAvailable);
   const piCheckDone = useUIStore((s) => s.piCheckDone);
