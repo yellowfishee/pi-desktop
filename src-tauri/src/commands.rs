@@ -198,6 +198,7 @@ pub async fn rename_session_file(
     }
 
     if !found {
+        // 即使 name 为空，也创建 session_info 条目以保存 pinned 状态
         let entry = serde_json::json!({
             "type": "session_info",
             "id": new_id,
@@ -206,7 +207,7 @@ pub async fn rename_session_file(
             "name": if name.is_empty() { "未命名会话" } else { &name },
             "pinned": pinned.unwrap_or(false),
         });
-        lines.push(serde_json::to_string(&entry).unwrap_or_default());
+        lines.insert(0, serde_json::to_string(&entry).unwrap_or_default());
         eprintln!("[rename_session_file] created new session_info entry");
     }
 
