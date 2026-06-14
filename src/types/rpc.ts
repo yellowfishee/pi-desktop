@@ -433,6 +433,7 @@ export interface UIMessage {
   customType?: string;
   display?: boolean;
   isComplete: boolean;
+  entryId?: string;
 }
 
 // --- 附件 ---
@@ -512,6 +513,19 @@ export interface SetAutoCompactionCommand {
   enabled: boolean;
 }
 
+export interface ForkCommand {
+  type: "fork";
+  entryId?: string;
+}
+
+export interface CloneCommand {
+  type: "clone";
+}
+
+export interface GetForkMessagesCommand {
+  type: "get_fork_messages";
+}
+
 export type RpcCommand =
   | PromptCommand
   | AbortCommand
@@ -525,7 +539,10 @@ export type RpcCommand =
   | SetThinkingLevelCommand
   | SetSessionNameCommand
   | CompactCommand
-  | SetAutoCompactionCommand;
+  | SetAutoCompactionCommand
+  | ForkCommand
+  | CloneCommand
+  | GetForkMessagesCommand;
 
 // --- RPC Response ---
 
