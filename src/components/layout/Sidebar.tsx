@@ -327,7 +327,13 @@ export default function Sidebar() {
           addToast({ level: 'info', message: '导出成功' });
         }
       } else {
-        addToast({ level: 'error', message: `导出失败: ${result.error || '未知错误'}` });
+        // pi 主题兼容：如果提示 theme not found，建议升级 pi
+        const errMsg = result.error || '未知错误';
+        if (errMsg.includes('Theme not found')) {
+          addToast({ level: 'warning', message: `导出失败: pi CLI 版本不支持当前主题，请升级 pi 或运行 \`pi themes\` 查看可用主题`, duration: 8000 });
+        } else {
+          addToast({ level: 'error', message: `导出失败: ${errMsg}` });
+        }
       }
     } catch (e) {
       console.error('Export HTML failed:', e);
