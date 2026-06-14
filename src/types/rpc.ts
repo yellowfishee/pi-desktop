@@ -526,6 +526,39 @@ export interface GetForkMessagesCommand {
   type: "get_fork_messages";
 }
 
+export interface ExportHtmlCommand {
+  type: "export_html";
+  outputPath?: string;
+}
+
+export interface BashCommand {
+  type: "bash";
+  command: string;
+}
+
+export interface AbortBashCommand {
+  type: "abort_bash";
+}
+
+export interface SetSteeringModeCommand {
+  type: "set_steering_mode";
+  mode: string;
+}
+
+export interface SetFollowUpModeCommand {
+  type: "set_follow_up_mode";
+  mode: string;
+}
+
+export interface SetAutoRetryCommand {
+  type: "set_auto_retry";
+  enabled: boolean;
+}
+
+export interface AbortRetryCommand {
+  type: "abort_retry";
+}
+
 export type RpcCommand =
   | PromptCommand
   | AbortCommand
@@ -542,7 +575,14 @@ export type RpcCommand =
   | SetAutoCompactionCommand
   | ForkCommand
   | CloneCommand
-  | GetForkMessagesCommand;
+  | GetForkMessagesCommand
+  | ExportHtmlCommand
+  | BashCommand
+  | AbortBashCommand
+  | SetSteeringModeCommand
+  | SetFollowUpModeCommand
+  | SetAutoRetryCommand
+  | AbortRetryCommand;
 
 // --- RPC Response ---
 

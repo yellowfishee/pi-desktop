@@ -9,11 +9,13 @@
 
 mod commands;
 mod config;
+mod diagnostics;
 mod pi_check;
 mod pi_process;
 mod sessions;
 
 use config::load_config;
+use diagnostics::PiDiagnostics;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -31,6 +33,7 @@ pub struct AppState {
     pub child: Arc<Mutex<Option<Child>>>,
     pub pending_commands: Arc<Mutex<HashMap<String, oneshot::Sender<Value>>>>,
     pub config: Arc<Mutex<config::AppConfig>>,
+    pub diagnostics: Arc<Mutex<PiDiagnostics>>,
 }
 
 // ============================================================
@@ -50,6 +53,7 @@ pub fn run() {
                 child: Arc::new(Mutex::new(None)),
                 pending_commands: pending_commands.clone(),
                 config: Arc::new(Mutex::new(load_config())),
+                diagnostics: Arc::new(Mutex::new(PiDiagnostics::default())),
             };
             app.manage(state);
 
@@ -74,6 +78,7 @@ pub fn run() {
             commands::send_extension_ui_response,
             commands::get_app_config,
             commands::set_app_config,
+            commands::get_pi_diagnostics,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

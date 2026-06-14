@@ -18,7 +18,7 @@ Step 3.1 → Step 3.2 → Step 3.3 → Step 3.4
 
 ## Todo 清单
 
-- [ ] **3.1** 消息编辑重发（双击编辑 → fork 分支）
-- [ ] **3.2** 侧边栏搜索过滤 + 导出 HTML
-- [ ] **3.3** 高级设置面板（bash/auto-retry/steering mode）
-- [ ] **3.4** 进程诊断页面
+- [x] **3.1** 消息编辑重发（双击编辑 → fork 分支）
+- [x] **3.2** 侧边栏搜索过滤 + 导出 HTML
+- [x] **3.3** 高级设置面板（bash/auto-retry/steering mode）
+- [x] **3.4** 进程诊断页面

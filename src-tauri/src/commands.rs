@@ -353,12 +353,26 @@ pub async fn start_pi(
 
     match spawn_pi_and_reader(app_handle, state.pending_commands.clone(), configured_path).await {
         Ok((stdin_writer, child)) => {
+            let pid = child.id();
             let mut stdin_lock = state.stdin.lock().await;
             *stdin_lock = Some(stdin_writer);
             *child_lock = Some(child);
+
+            // 更新诊断
+            let mut diag = state.diagnostics.lock().await;
+            diag.running = true;
+            diag.pid = pid;
+            diag.start_time = Some(chrono::Utc::now());
+
             Ok(())
         }
-        Err(e) => Err(e),
+        Err(e) => {
+            let mut diag = state.diagnostics.lock().await;
+            diag.crash_count += 1;
+            diag.last_crash_time = Some(chrono::Utc::now());
+            diag.last_crash_error = Some(e.clone());
+            Err(e)
+        }
     }
 }
 
@@ -383,6 +397,10 @@ pub async fn stop_pi(state: tauri::State<'_, crate::AppState>) -> Result<(), Str
         }
     }
 
+    // 更新诊断
+    let mut diag = state.diagnostics.lock().await;
+    diag.running = false;
+
     Ok(())
 }
 
@@ -390,6 +408,12 @@ pub async fn stop_pi(state: tauri::State<'_, crate::AppState>) -> Result<(), Str
 pub async fn pi_is_running(state: tauri::State<'_, crate::AppState>) -> Result<bool, String> {
     let child_lock = state.child.lock().await;
     Ok(child_lock.is_some())
+}
+
+#[tauri::command]
+pub async fn get_pi_diagnostics(state: tauri::State<'_, crate::AppState>) -> Result<crate::diagnostics::PiDiagnostics, String> {
+    let diag = state.diagnostics.lock().await;
+    Ok(diag.clone())
 }
 
 // ============================================================
