@@ -36,11 +36,34 @@ function UserBubble({ message }: Props) {
     ? message.rawContent
     : message.content.find((b) => b.type === 'text')?.text || '';
 
+  // 从 rawContent 提取图片（如果是 ContentPart[]）
+  const images = !Array.isArray(message.rawContent)
+    ? []
+    : (message.rawContent as any[]).filter((part: any) => part.type === 'image');
+
   return (
     <article className="mb-7 flex justify-end">
       <div className="max-w-[82%] sm:max-w-[72%]">
-        <div className="rounded-xl border border-[var(--border-color)] bg-[var(--raised-bg)] px-4 py-3 text-sm text-[var(--fg-color)]">
-          <p className="whitespace-pre-wrap break-words leading-relaxed">{text}</p>
+        <div className="overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--raised-bg)]">
+          {/* 图片 */}
+          {images.length > 0 && (
+            <div className="flex flex-wrap gap-1 p-2 pb-0">
+              {images.map((img: any, i: number) => (
+                <img
+                  key={i}
+                  src={`data:${img.mimeType};base64,${img.data}`}
+                  alt={`图片 ${i + 1}`}
+                  className="max-h-64 max-w-full rounded-md border border-[var(--border-color)] object-cover"
+                />
+              ))}
+            </div>
+          )}
+          {/* 文本 */}
+          {text && (
+            <div className="px-4 py-3 text-sm text-[var(--fg-color)]">
+              <p className="whitespace-pre-wrap break-words leading-relaxed">{text}</p>
+            </div>
+          )}
         </div>
         <div className="mt-1 text-right">
           <span className="text-[10px] text-[var(--fg-subtle)]">
