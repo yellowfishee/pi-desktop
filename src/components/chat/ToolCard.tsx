@@ -33,11 +33,13 @@ function ToolCard({ block }: Props) {
 
   const resultText = useMemo(() => getResultText(result), [result]);
   const partialText = useMemo(() => getPartialText(block.partialResult), [block.partialResult]);
-  const details = result?.details || {};
-  const diffText = getString(details.diff) || getString(details.patch) || guessDiff(resultText);
-  const summary = getToolSummary(toolKind, args);
+  const diffText = useMemo(() => {
+    const details = result?.details || {};
+    return getString(details.diff) || getString(details.patch) || guessDiff(resultText);
+  }, [result, resultText]);
+  const summary = useMemo(() => getToolSummary(toolKind, args), [toolKind, args]);
   const renderedArgs = useMemo(() => JSON.stringify(args, null, 2), [args]);
-  const hasArgs = Object.keys(args).length > 0;
+  const hasArgs = useMemo(() => Object.keys(args).length > 0, [args]);
   const hasResult = Boolean(resultText || diffText || partialText || isError);
 
   const statusTone: Record<string, string> = {
@@ -119,19 +121,12 @@ function renderCallPreview(toolKind: string, args: ToolArgs, renderedArgs: strin
     const path = getPath(args);
     const action = toolKind.includes('read') ? '读取' : toolKind.includes('write') ? '创建' : '修改';
     return (
-      <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-950">
-        <div className="flex items-center gap-2 font-mono text-xs">
-          <span className="text-gray-400 dark:text-gray-500">{action}</span>
-          <span className="text-gray-700 dark:text-gray-300 truncate">{path || '(无路径)'}</span>
-        </div>
-      </div>
+      <CallPreviewPath action={action} path={path} />
     );
   }
 
   return (
-    <pre className="max-h-36 overflow-auto rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xxs text-gray-600 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400">
-      {renderedArgs}
-    </pre>
+    <CallPreviewArgs renderedArgs={renderedArgs} />
   );
 }
 
@@ -178,7 +173,7 @@ function renderToolResult(
   return <PlainOutput text={output || (isError ? '工具执行失败' : '无输出')} error={isError} />;
 }
 
-function TerminalBlock({ text, prompt = false, error = false }: { text: string; prompt?: boolean; error?: boolean }) {
+const TerminalBlock = memo(function TerminalBlock({ text, prompt = false, error = false }: { text: string; prompt?: boolean; error?: boolean }) {
   return (
     <pre className={`max-h-80 overflow-auto rounded-lg border px-3 py-2 font-mono text-xs leading-relaxed ${
       error
@@ -188,30 +183,32 @@ function TerminalBlock({ text, prompt = false, error = false }: { text: string; 
       {prompt ? <><span className="select-none text-gray-400 mr-1.5">$</span>{text}</> : text || ' '}
     </pre>
   );
-}
+});
 
-function CodeBlock({ text }: { text: string }) {
+const CodeBlock = memo(function CodeBlock({ text }: { text: string }) {
   return (
     <pre className="max-h-96 overflow-auto rounded-lg border border-gray-200/60 bg-[#fafbfc] px-3 py-2 font-mono text-xs leading-relaxed text-gray-800 dark:border-gray-700/60 dark:bg-gray-900 dark:text-gray-200">
       {text || ' '}
     </pre>
   );
-}
+});
 
-function DiffBlock({ text }: { text: string }) {
+const DiffBlock = memo(function DiffBlock({ text }: { text: string }) {
+  const lines = useMemo(() => text.split('\n'), [text]);
+
   return (
     <pre className="max-h-96 overflow-auto rounded-lg border border-gray-200/60 bg-[#f6f8fa] px-3 py-2 font-mono text-xs leading-relaxed dark:border-gray-700/60 dark:bg-[#161b22]">
-      {text.split('\n').map((line, index) => (
+      {lines.map((line, index) => (
         <div key={index} className={getDiffLineClass(line)}>
           {line || ' '}
         </div>
       ))}
     </pre>
   );
-}
+});
 
-function ListOutput({ text, error }: { text: string; error: boolean }) {
-  const lines = text.split('\n').filter(Boolean);
+const ListOutput = memo(function ListOutput({ text, error }: { text: string; error: boolean }) {
+  const lines = useMemo(() => text.split('\n').filter(Boolean), [text]);
   if (lines.length === 0) return <PlainOutput text={error ? '无结果' : '无输出'} error={error} />;
   return (
     <div className="max-h-80 overflow-auto rounded-lg border border-gray-200/60 bg-gray-50 py-1 dark:border-gray-700/60 dark:bg-gray-900">
@@ -222,9 +219,9 @@ function ListOutput({ text, error }: { text: string; error: boolean }) {
       ))}
     </div>
   );
-}
+});
 
-function PlainOutput({ text, error }: { text: string; error: boolean }) {
+const PlainOutput = memo(function PlainOutput({ text, error }: { text: string; error: boolean }) {
   return (
     <div className={`whitespace-pre-wrap rounded-lg border px-3 py-2 text-xs leading-relaxed ${
       error
@@ -234,7 +231,7 @@ function PlainOutput({ text, error }: { text: string; error: boolean }) {
       {text}
     </div>
   );
-}
+});
 
 function getToolSummary(toolKind: string, args: ToolArgs): string {
   if (toolKind.includes('bash') || toolKind === 'shell') return String(args.command || args.cmd || '');
@@ -286,5 +283,24 @@ function getDiffLineClass(line: string): string {
   if (line.startsWith('diff ') || line.startsWith('---') || line.startsWith('+++')) return 'text-gray-500 dark:text-gray-400';
   return 'text-gray-700 dark:text-gray-300';
 }
+
+const CallPreviewPath = memo(function CallPreviewPath({ action, path }: { action: string; path: string }) {
+  return (
+    <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-950">
+      <div className="flex items-center gap-2 font-mono text-xs">
+        <span className="text-gray-400 dark:text-gray-500">{action}</span>
+        <span className="text-gray-700 dark:text-gray-300 truncate">{path || '(无路径)'}</span>
+      </div>
+    </div>
+  );
+});
+
+const CallPreviewArgs = memo(function CallPreviewArgs({ renderedArgs }: { renderedArgs: string }) {
+  return (
+    <pre className="max-h-36 overflow-auto rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xxs text-gray-600 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400">
+      {renderedArgs}
+    </pre>
+  );
+});
 
 export default memo(ToolCard);

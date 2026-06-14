@@ -1,7 +1,7 @@
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { useSessionStore } from '../stores/sessionStore';
-import { useMessageStore } from '../stores/messageStore';
+import { useMessageStore, type BatchDelta } from '../stores/messageStore';
 import { useUIStore } from '../stores/uiStore';
 import type {
   PiEvent,
@@ -199,14 +199,33 @@ export async function setupEventListeners() {
   });
 
   // 监听 pi 进程退出事件
-  const unlistenProcessExit = await listen<{ code: number | null; reason: string }>('pi-process-exit', (event) => {
+  const unlistenProcessExit = await listen<{ code: number | null; reason: string }>('pi-process-exit', async (event) => {
     const store = useUIStore.getState();
     store.setPiRunning(false);
     store.addToast({
-      level: 'error',
-      message: `pi 进程已退出 (code: ${event.payload.code ?? 'unknown'})`,
-      duration: 0,
+      level: 'warning',
+      message: `pi 进程已退出 (code: ${event.payload.code ?? 'unknown'})，正在尝试重新连接...`,
+      duration: 5000,
     });
+
+    // 尝试自动重启 pi
+    try {
+      await new Promise((r) => setTimeout(r, 1000)); // 等待 1s 让旧进程完全清理
+      await startPi();
+      store.setPiRunning(true);
+      store.addToast({
+        level: 'info',
+        message: 'pi 已自动重启',
+        duration: 3000,
+      });
+    } catch (e) {
+      console.error('[pi] auto-restart failed:', e);
+      store.addToast({
+        level: 'error',
+        message: `pi 自动重启失败: ${e}`,
+        duration: 0,
+      });
+    }
   });
 
   return () => {
@@ -216,11 +235,7 @@ export async function setupEventListeners() {
   };
 }
 
-type QueuedDelta = {
-  text: string;
-  thinking: string;
-  toolArgs: string;
-};
+type QueuedDelta = BatchDelta;
 
 const queuedMessageUpdates = new Map<string, Map<number, QueuedDelta>>();
 let queuedMessageFrame: number | null = null;
@@ -264,20 +279,8 @@ function flushQueuedMessageUpdates() {
   const updates = Array.from(queuedMessageUpdates.entries());
   queuedMessageUpdates.clear();
 
-  const messageStore = useMessageStore.getState();
-  for (const [messageId, blocks] of updates) {
-    for (const [contentIndex, delta] of blocks) {
-      if (delta.text) {
-        messageStore.appendTextContent(messageId, contentIndex, delta.text);
-      }
-      if (delta.thinking) {
-        messageStore.appendThinkingContent(messageId, contentIndex, delta.thinking);
-      }
-      if (delta.toolArgs) {
-        messageStore.updateToolCallArgs(messageId, contentIndex, delta.toolArgs);
-      }
-    }
-  }
+  // Use batch apply — single set() for all deltas
+  useMessageStore.getState().applyBatchDeltas(updates);
 }
 
 function queueToolExecutionUpdate(toolCallId: string, status: string, result?: unknown) {
@@ -297,10 +300,8 @@ function flushQueuedToolUpdates() {
   const updates = Array.from(queuedToolUpdates.entries());
   queuedToolUpdates.clear();
 
-  const messageStore = useMessageStore.getState();
-  for (const [toolCallId, update] of updates) {
-    messageStore.updateToolExecution(toolCallId, update.status, update.result);
-  }
+  // Use batch apply — single set() for all tool updates
+  useMessageStore.getState().applyBatchToolUpdates(updates);
 }
 
 function queueExtensionStatus(key: string, text: string | null) {
@@ -330,6 +331,34 @@ function flushQueuedExtensionStatuses() {
   }
 }
 
+// ============================================================
+// Agent 周期跟踪：用 agent_start/agent_end 控制气泡生命周期
+// 存储在 store 中，避免 HMR 丢失模块级变量
+// ============================================================
+
+function ensureActiveAgentBubble() {
+  const state = useMessageStore.getState();
+  // 从尾部找未完成的 assistant 消息
+  for (let i = state.messages.length - 1; i >= 0; i--) {
+    if (state.messages[i].role === 'assistant' && !state.messages[i].isComplete) {
+      return state.messages[i].id;
+    }
+  }
+  return state.ensureAssistantMessage();
+}
+
+function closeActiveAgentBubble() {
+  const state = useMessageStore.getState();
+  for (let i = state.messages.length - 1; i >= 0; i--) {
+    if (state.messages[i].role === 'assistant' && !state.messages[i].isComplete) {
+      state.completeMessage(state.messages[i].id, 'stop');
+      return;
+    }
+  }
+}
+
+let currentTurnBaseIndex = 0;
+
 function handlePiEvent(event: PiEvent) {
   const sessionStore = useSessionStore.getState();
   const messageStore = useMessageStore.getState();
@@ -338,15 +367,27 @@ function handlePiEvent(event: PiEvent) {
   switch (event.type) {
     case 'agent_start':
       sessionStore.setStreaming(true);
+      // 新 agent 周期开始，复用发送时创建的 pending 气泡
+      ensureActiveAgentBubble();
+      currentTurnBaseIndex = useMessageStore.getState().messages
+        .find((m) => m.role === 'assistant' && !m.isComplete)?.content.length ?? 0;
+      console.log('[event] agent_start');
       break;
 
     case 'agent_end':
       sessionStore.setStreaming(false);
+      // 完成当前 agent 周期的所有未完成 assistant 气泡
+      flushQueuedMessageUpdates();
+      flushQueuedToolUpdates();
+      closeActiveAgentBubble();
+      currentTurnBaseIndex = 0;
       sessionStore.refreshStats();
       console.log('[event] agent_end');
       break;
 
     case 'turn_start':
+      currentTurnBaseIndex = useMessageStore.getState().messages
+        .find((m) => m.role === 'assistant' && !m.isComplete)?.content.length ?? 0;
       break;
 
     case 'turn_end':
@@ -354,8 +395,8 @@ function handlePiEvent(event: PiEvent) {
 
     case 'message_start':
       if (event.message?.role === 'assistant') {
-        // 创建新的 assistant 消息气泡
-        messageStore.ensureAssistantMessage();
+        // ensureActiveAgentBubble 会复用已有的未完成气泡或创建新的
+        ensureActiveAgentBubble();
       }
       break;
 
@@ -455,38 +496,43 @@ function handleMessageUpdate(event: MessageUpdateEvent) {
   const messageStore = useMessageStore.getState();
   const { assistantMessageEvent: evt } = event;
 
-  // 找到或创建 assistant 消息
-  const messageId = messageStore.ensureAssistantMessage();
+  const messageId = ensureActiveAgentBubble();
+  const ci = ('contentIndex' in evt) ? (evt as any).contentIndex as number : 0;
+  const adjustedIndex = currentTurnBaseIndex + ci;
 
   switch (evt.type) {
     case 'text_delta':
-      queueMessageDelta(messageId, evt.contentIndex, 'text', evt.delta);
+      queueMessageDelta(messageId, adjustedIndex, 'text', evt.delta);
       break;
     case 'text_end':
       flushQueuedMessageUpdates();
-      messageStore.finalizeTextContent(messageId, evt.contentIndex, evt.content);
+      messageStore.finalizeTextContent(messageId, adjustedIndex, evt.content);
       break;
     case 'thinking_delta':
-      queueMessageDelta(messageId, evt.contentIndex, 'thinking', evt.delta);
+      queueMessageDelta(messageId, adjustedIndex, 'thinking', evt.delta);
       break;
     case 'thinking_end':
       flushQueuedMessageUpdates();
-      messageStore.finalizeThinkingContent(messageId, evt.contentIndex);
+      messageStore.finalizeThinkingContent(messageId, adjustedIndex);
       break;
     case 'toolcall_start':
       flushQueuedMessageUpdates();
-      messageStore.addToolCall(messageId, evt.contentIndex, evt.partial);
+      messageStore.addToolCall(messageId, adjustedIndex, evt.partial);
       break;
     case 'toolcall_delta':
-      queueMessageDelta(messageId, evt.contentIndex, 'toolArgs', evt.delta);
+      queueMessageDelta(messageId, adjustedIndex, 'toolArgs', evt.delta);
       break;
     case 'toolcall_end':
       flushQueuedMessageUpdates();
-      messageStore.finalizeToolCall(messageId, evt.contentIndex, evt.toolCall);
+      messageStore.finalizeToolCall(messageId, adjustedIndex, evt.toolCall);
       break;
     case 'done':
       flushQueuedMessageUpdates();
-      messageStore.completeMessage(messageId, evt.reason);
+      // 无论 reason 是什么，都不在此处关闭气泡
+      // 气泡的生命周期由 agent_start/agent_end 控制
+      // toolUse → agent 会继续下一轮
+      // stop/length → 这意味着 agent_end 紧随其后，在那里关闭
+      console.log('[event] message done, reason:', evt.reason);
       break;
     case 'error':
       flushQueuedMessageUpdates();
@@ -539,25 +585,27 @@ export async function initializeApp() {
     return;
   }
 
-  // 3. 加载会话列表 + 可用模型
+  // 3. 加载会话列表 + 可用模型 + 获取状态 — 并行执行
   try {
-    const projects = await listSessions();
-    useSessionStore.getState().setSessions(projects);
-  } catch (e) {
-    console.error('Failed to list sessions:', e);
-  }
+    const [projectsResult, modelsResult, stateResult] = await Promise.allSettled([
+      listSessions(),
+      useSessionStore.getState().loadModels(),
+      sendCommand({ type: 'get_state' }),
+    ]);
 
-  try {
-    await useSessionStore.getState().loadModels();
-  } catch (e) {
-    console.error('Failed to load models:', e);
-  }
+    if (projectsResult.status === 'fulfilled') {
+      useSessionStore.getState().setSessions(projectsResult.value);
+    } else {
+      console.error('Failed to list sessions:', projectsResult.reason);
+    }
 
-  // 4. 获取当前状态
-  try {
-    const response = await sendCommand({ type: 'get_state' });
-    if (response.success && response.data) {
-      const data = response.data as any;
+    // loadModels already updates store internally
+    if (modelsResult.status === 'rejected') {
+      console.error('Failed to load models:', modelsResult.reason);
+    }
+
+    if (stateResult.status === 'fulfilled' && stateResult.value.success && stateResult.value.data) {
+      const data = stateResult.value.data as any;
       useSessionStore.getState().updateState({
         model: data.model,
         thinkingLevel: data.thinkingLevel || 'medium',
@@ -570,8 +618,10 @@ export async function initializeApp() {
       if (data.sessionId) {
         useSessionStore.getState().setActiveSession(data.sessionId, data.sessionFile || '');
       }
+    } else if (stateResult.status === 'rejected') {
+      console.error('Failed to get state:', stateResult.reason);
     }
   } catch (e) {
-    console.error('Failed to get state:', e);
+    console.error('Failed to initialize session data:', e);
   }
 }

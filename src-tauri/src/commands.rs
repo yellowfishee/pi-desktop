@@ -69,11 +69,18 @@ pub async fn list_git_changes(dir_name: String) -> Result<GitChanges, String> {
         branch
     };
 
-    let status_output = run_git(
-        Path::new(&root),
-        &["status", "--porcelain=v1", "--untracked-files=all"],
-    )?;
-    let numstat_output = run_git(Path::new(&root), &["diff", "--numstat", "HEAD", "--"])?;
+    // Batch: run both status and numstat concurrently via threads
+    let root_path = Path::new(&root).to_path_buf();
+    let root_path_clone = root_path.clone();
+    let status_handle = std::thread::spawn(move || {
+        run_git(&root_path, &["status", "--porcelain=v1", "--untracked-files=all"])
+    });
+    let numstat_handle = std::thread::spawn(move || {
+        run_git(&root_path_clone, &["diff", "--numstat", "HEAD", "--"])
+    });
+
+    let status_output = status_handle.join().unwrap_or_else(|_| Err("Thread panicked".to_string()))?;
+    let numstat_output = numstat_handle.join().unwrap_or_else(|_| Err("Thread panicked".to_string()))?;
     let numstat = parse_numstat(&numstat_output);
 
     let mut files = Vec::new();
@@ -127,6 +134,7 @@ pub async fn read_session_messages(session_path: String) -> Result<Vec<Value>, S
 #[tauri::command]
 pub async fn delete_session_file(session_path: String) -> Result<(), String> {
     std::fs::remove_file(&session_path).map_err(|e| format!("删除失败: {}", e))?;
+    crate::sessions::invalidate_scan_cache();
     Ok(())
 }
 
@@ -142,6 +150,7 @@ pub async fn delete_project(dir_name: String) -> Result<(), String> {
         return Err("项目目录不存在".into());
     }
     std::fs::remove_dir_all(&project_dir).map_err(|e| format!("删除项目失败: {}", e))?;
+    crate::sessions::invalidate_scan_cache();
     Ok(())
 }
 
@@ -190,6 +199,7 @@ pub async fn rename_session_file(session_path: String, name: String) -> Result<(
 
     std::fs::write(&session_path, lines.join("\n") + "\n")
         .map_err(|e| format!("写入失败: {}", e))?;
+    crate::sessions::invalidate_scan_cache();
     Ok(())
 }
 
@@ -252,6 +262,24 @@ pub async fn pi_is_running(state: tauri::State<'_, crate::AppState>) -> Result<b
 // RPC 通信
 // ============================================================
 
+/// 根据 command type 决定超时时长
+fn command_timeout(cmd_type: &str) -> std::time::Duration {
+    match cmd_type {
+        // 长时间运行命令
+        "prompt" | "new_session" | "switch_session" | "set_model" => {
+            std::time::Duration::from_secs(180)
+        }
+        // 轻量命令
+        "get_state" | "get_messages" | "get_session_stats"
+        | "get_available_models" | "set_thinking_level"
+        | "set_session_name" => {
+            std::time::Duration::from_secs(10)
+        }
+        // 默认
+        _ => std::time::Duration::from_secs(30),
+    }
+}
+
 #[tauri::command]
 pub async fn send_command(
     state: tauri::State<'_, crate::AppState>,
@@ -259,6 +287,12 @@ pub async fn send_command(
 ) -> Result<Value, String> {
     use tokio::io::AsyncWriteExt;
     use tokio::sync::oneshot;
+
+    let cmd_type = command
+        .get("type")
+        .and_then(|t| t.as_str())
+        .unwrap_or("");
+    let timeout = command_timeout(cmd_type);
 
     let id = command
         .get("id")
@@ -279,23 +313,34 @@ pub async fn send_command(
 
     {
         let mut stdin_lock = state.stdin.lock().await;
-        let writer = stdin_lock.as_mut().ok_or("pi 进程未运行")?;
+        let writer = match stdin_lock.as_mut() {
+            Some(w) => w,
+            None => {
+                // pi 进程已退出，清理 pending 并返回错误
+                let mut pending = state.pending_commands.lock().await;
+                pending.remove(&id);
+                return Err("pi 进程已退出".to_string());
+            }
+        };
         let line = serde_json::to_string(&cmd).map_err(|e| e.to_string())?;
         writer
             .write_all(line.as_bytes())
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| {
+                eprintln!("[send_command] stdin write error: {}", e);
+                e.to_string()
+            })?;
         writer.write_all(b"\n").await.map_err(|e| e.to_string())?;
         writer.flush().await.map_err(|e| e.to_string())?;
     }
 
-    match tokio::time::timeout(std::time::Duration::from_secs(30), rx).await {
+    match tokio::time::timeout(timeout, rx).await {
         Ok(Ok(response)) => Ok(response),
         Ok(Err(_)) => Err("命令响应通道已关闭".to_string()),
         Err(_) => {
             let mut pending = state.pending_commands.lock().await;
             pending.remove(&id);
-            Err("命令超时 (30s)".to_string())
+            Err(format!("命令超时 ({}s)", timeout.as_secs()))
         }
     }
 }
@@ -308,7 +353,10 @@ pub async fn send_extension_ui_response(
     use tokio::io::AsyncWriteExt;
 
     let mut stdin_lock = state.stdin.lock().await;
-    let writer = stdin_lock.as_mut().ok_or("pi 进程未运行")?;
+    let writer = match stdin_lock.as_mut() {
+        Some(w) => w,
+        None => return Err("pi 进程已退出".to_string()),
+    };
     let line = serde_json::to_string(&response).map_err(|e| e.to_string())?;
     writer
         .write_all(line.as_bytes())

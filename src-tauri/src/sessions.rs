@@ -4,8 +4,9 @@ use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::io::BufRead;
+use std::time::Instant;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SessionMeta {
     pub file_path: String,
     pub session_id: String,
@@ -15,7 +16,7 @@ pub struct SessionMeta {
     pub cwd: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ProjectMeta {
     pub name: String,
     pub path: String,
@@ -23,7 +24,38 @@ pub struct ProjectMeta {
     pub sessions: Vec<SessionMeta>,
 }
 
+/// Cached scan result with TTL (5 seconds)
+static SCAN_CACHE: std::sync::Mutex<Option<(std::time::Instant, Vec<ProjectMeta>)>> = std::sync::Mutex::new(None);
+const SCAN_TTL_SECS: u64 = 5;
+
 pub fn scan_projects() -> Vec<ProjectMeta> {
+    // Check cache first
+    if let Ok(cache) = SCAN_CACHE.lock() {
+        if let Some((timestamp, ref data)) = *cache {
+            if timestamp.elapsed().as_secs() < SCAN_TTL_SECS {
+                return data.clone();
+            }
+        }
+    }
+
+    let result = scan_projects_uncached();
+
+    // Update cache
+    if let Ok(mut cache) = SCAN_CACHE.lock() {
+        *cache = Some((Instant::now(), result.clone()));
+    }
+
+    result
+}
+
+/// Force a fresh scan, bypassing cache (used after mutations like delete/rename)
+pub fn invalidate_scan_cache() {
+    if let Ok(mut cache) = SCAN_CACHE.lock() {
+        *cache = None;
+    }
+}
+
+fn scan_projects_uncached() -> Vec<ProjectMeta> {
     let sessions_dir = match dirs::home_dir() {
         Some(h) => h.join(".pi").join("agent").join("sessions"),
         None => return Vec::new(),

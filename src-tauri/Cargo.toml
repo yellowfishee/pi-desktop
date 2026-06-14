@@ -25,5 +25,5 @@ serde_json = "1"
 tokio = { version = "1", features = ["process", "io-util", "sync", "time", "rt", "macros"] }
 dirs = "5"
 walkdir = "2"
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4", features = ["serde", "clock"] }
 

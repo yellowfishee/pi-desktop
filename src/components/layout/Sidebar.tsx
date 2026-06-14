@@ -29,6 +29,11 @@ type ProjectTreeItem = {
   projectMatched: boolean;
 };
 
+type TimeGroup = {
+  label: string;
+  sessions: SessionMeta[];
+};
+
 export default function Sidebar() {
   const projects = useSessionStore((s) => s.projects);
   const activeProjectDir = useSessionStore((s) => s.activeProjectDir);
@@ -80,14 +85,51 @@ export default function Sidebar() {
       .filter((item) => item.projectMatched || item.sessions.length > 0);
   }, [projects, searchQuery]);
 
+  // 按时间分组会话
+  const groupSessionsByTime = (sessions: SessionMeta[]): TimeGroup[] => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 86400000);
+    const weekAgo = new Date(today.getTime() - 7 * 86400000);
+
+    const groups: TimeGroup[] = [
+      { label: '今天', sessions: [] },
+      { label: '昨天', sessions: [] },
+      { label: '本周', sessions: [] },
+      { label: '更早', sessions: [] },
+    ];
+
+    for (const session of sessions) {
+      const ts = new Date(session.timestamp);
+      if (ts >= today) {
+        groups[0].sessions.push(session);
+      } else if (ts >= yesterday) {
+        groups[1].sessions.push(session);
+      } else if (ts >= weekAgo) {
+        groups[2].sessions.push(session);
+      } else {
+        groups[3].sessions.push(session);
+      }
+    }
+
+    return groups.filter((g) => g.sessions.length > 0);
+  };
+
+  // ── Handlers ──────────────────────────────────────────────
+
   const handleNewSession = async () => {
     const store = useSessionStore.getState();
     const savedProject = store.activeProject;
     const savedDirName = store.activeProjectDir;
 
+    // 立即更新 UI，不等待命令完成
+    useMessageStore.getState().clearMessages();
+    useSessionStore.getState().setSessionLoading(true);
+
     try {
       const res = await sendCommand({ type: 'new_session' });
       if (!res.success) {
+        useSessionStore.getState().setSessionLoading(false);
         if (res.error === 'Tauri runtime unavailable') {
           addToast({ level: 'info', message: '桌面运行时连接后即可创建会话' });
           return;
@@ -96,20 +138,22 @@ export default function Sidebar() {
         return;
       }
 
-      useMessageStore.getState().clearMessages();
-
-      const stateRes = await sendCommand({ type: 'get_state' });
-      if (stateRes.success && stateRes.data) {
-        const data = stateRes.data as any;
-        useSessionStore.getState().updateState({
-          model: data.model,
-          thinkingLevel: data.thinkingLevel,
-          sessionName: data.sessionName,
-          messageCount: data.messageCount || 0,
-        } as any);
-        useSessionStore.getState().setActiveProject(savedProject, savedDirName);
-        useSessionStore.getState().setActiveSession(data.sessionId || '', data.sessionFile || '');
-      }
+      // 后台获取状态和刷新列表，不阻塞 UI
+      sendCommand({ type: 'get_state' })
+        .then((stateRes) => {
+          if (stateRes.success && stateRes.data) {
+            const data = stateRes.data as any;
+            useSessionStore.getState().updateState({
+              model: data.model,
+              thinkingLevel: data.thinkingLevel,
+              sessionName: data.sessionName,
+              messageCount: data.messageCount || 0,
+            } as any);
+            useSessionStore.getState().setActiveProject(savedProject, savedDirName);
+            useSessionStore.getState().setActiveSession(data.sessionId || '', data.sessionFile || '');
+          }
+        })
+        .catch(() => {});
 
       listSessions()
         .then((updated) => useSessionStore.getState().setSessions(updated))
@@ -118,6 +162,7 @@ export default function Sidebar() {
       useSessionStore.getState().setSessionLoading(false);
       addToast({ level: 'info', message: '新会话已创建' });
     } catch (e) {
+      useSessionStore.getState().setSessionLoading(false);
       useSessionStore.getState().setActiveProject(savedProject, savedDirName);
       addToast({ level: 'error', message: `创建失败: ${e}` });
     }
@@ -251,10 +296,12 @@ export default function Sidebar() {
     }
   };
 
+  // ── Collapsed rail ────────────────────────────────────────
+
   if (sidebarCollapsed) {
     return (
-      <aside className="h-full w-full flex flex-col items-center bg-[#f7f7f5] dark:bg-[#171717] border-r border-gray-200/60 dark:border-gray-800/80">
-        <div className="flex flex-col items-center gap-0.5 py-3">
+      <aside className="sidebar">
+        <div className="sidebar-actions" style={{ alignItems: 'center', paddingTop: '0.75rem' }}>
           <RailButton title="新建对话" onClick={handleNewSession}>
             <PlusIcon />
           </RailButton>
@@ -262,7 +309,7 @@ export default function Sidebar() {
             <SidebarToggleIcon collapsed className="w-4 h-4" />
           </RailButton>
         </div>
-        <div className="mt-auto flex flex-col items-center gap-0.5 py-3">
+        <div className="sidebar-footer">
           <RailButton title="概览" onClick={toggleProperties}>
             <CheckPanelIcon />
           </RailButton>
@@ -274,20 +321,23 @@ export default function Sidebar() {
     );
   }
 
+  // ── Expanded sidebar ──────────────────────────────────────
+
   return (
-    <aside className="h-full flex flex-col bg-[#f7f7f5] dark:bg-[#171717] border-r border-gray-200/60 dark:border-gray-800/80 text-gray-900 dark:text-gray-100">
-      <div className="px-3 pt-3 pb-2.5 border-b border-gray-200/60 dark:border-gray-800/80">
-        <div className="flex items-center gap-1.5">
+    <aside className="sidebar">
+      {/* Header */}
+      <div className="sidebar-header">
+        <div className="sidebar-header-row">
           <button
             onClick={toggleSidebar}
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-gray-400/80 transition-all duration-150 hover:bg-gray-200/60 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-gray-800/70 dark:hover:text-gray-200"
+            className="sidebar-icon-btn"
             title="折叠侧边栏"
           >
             <SidebarToggleIcon className="w-4 h-4" />
           </button>
           <button
             onClick={handleNewSession}
-            className="h-9 min-w-0 flex-1 flex items-center justify-center gap-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 active:scale-[0.98] dark:bg-gray-100 dark:text-gray-950 dark:hover:bg-white text-xs font-medium transition-all duration-150"
+            className="sidebar-new-btn"
           >
             <PlusIcon className="w-3.5 h-3.5" />
             新建对话
@@ -295,25 +345,32 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <div className="px-3 py-2.5 border-b border-gray-200/60 dark:border-gray-800/80">
-        <div className="relative">
-          <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400/70" />
+      {/* Search */}
+      <div className="sidebar-search">
+        <div className="sidebar-search-inner">
+          <SearchIcon className="sidebar-search-icon" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="搜索项目或会话"
-            className="w-full h-8 rounded-lg border border-gray-200/80 dark:border-gray-700/80 bg-white/60 dark:bg-gray-900/60 pl-8 pr-2.5 text-xs text-gray-800 dark:text-gray-200 placeholder:text-gray-400/60 outline-none transition-all duration-150 focus:border-gray-300 focus:bg-white dark:focus:border-gray-600 dark:focus:bg-gray-900"
+            placeholder="搜索项目或会话…"
+            className="sidebar-search-input"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="sidebar-search-clear"
+            >
+              <XIcon className="w-3 h-3" />
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto py-2">
-        <div className="mb-1.5 px-3 text-[11px] font-medium tracking-wider text-gray-400/80 dark:text-gray-500">
-          项目
-        </div>
-        <div className="px-1.5">
-          {projectTree.map((item) => {
+      {/* Session list */}
+      <div className="sidebar-list">
+        {projectTree.length > 0 ? (
+          projectTree.map((item) => {
             const forceOpen = Boolean(searchQuery.trim());
             const expanded = forceOpen || (expandedProjects[item.project.dir_name] ?? true);
             return (
@@ -337,39 +394,32 @@ export default function Sidebar() {
                 onRename={handleRename}
               />
             );
-          })}
-          {projectTree.length === 0 && (
-            <EmptyState label={searchQuery.trim() ? '无匹配项目或会话' : '暂无项目'} />
-          )}
-        </div>
+          })
+        ) : (
+          <div className="sidebar-empty">
+            <IconFolder className="w-8 h-8 text-gray-300 dark:text-gray-600 mb-2" />
+            <p>{searchQuery.trim() ? '无匹配项目或会话' : '暂无项目'}</p>
+          </div>
+        )}
       </div>
 
-      <div className="border-t border-gray-200/60 dark:border-gray-800/80 px-3 py-2.5">
-        <div className="mb-1.5 flex items-center gap-1 text-[10px] text-gray-400/50 dark:text-gray-500/50">
-          <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600" />
+      {/* Footer */}
+      <div className="sidebar-footer">
+        <div className="sidebar-stats">
           {projects.length} 个项目 · {totalSessions} 个会话
         </div>
-        <button
-          onClick={toggleProperties}
-          className="w-full h-7 flex items-center gap-2 rounded-lg px-2 text-xs text-gray-500 hover:bg-gray-200/50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800/50 dark:hover:text-gray-200 transition-all duration-150"
-        >
-          <CheckPanelIcon className="w-3.5 h-3.5" />
-          概览
-        </button>
-        <button
-          onClick={() => setSettingsOpen(true)}
-          className="w-full h-7 flex items-center gap-2 rounded-lg px-2 text-xs text-gray-500 hover:bg-gray-200/50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800/50 dark:hover:text-gray-200 transition-all duration-150"
-        >
-          <IconSettings className="w-3.5 h-3.5" />
-          设置
-        </button>
+        <div className="sidebar-footer-actions">
+          <SidebarFooterButton onClick={toggleProperties} icon={<CheckPanelIcon className="w-3.5 h-3.5" />} label="概览" />
+          <SidebarFooterButton onClick={() => setSettingsOpen(true)} icon={<IconSettings className="w-3.5 h-3.5" />} label="设置" />
+        </div>
       </div>
 
+      {/* Context Menu */}
       {contextMenu && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)} />
           <div
-            className="fixed z-50 min-w-[140px] rounded-lg border border-gray-200/80 bg-white/95 py-1 shadow-lg backdrop-blur dark:border-gray-700/80 dark:bg-gray-900/95"
+            className="sidebar-context-menu"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
             {contextMenu.kind === 'session' ? (
@@ -382,6 +432,7 @@ export default function Sidebar() {
                   <CopyIcon className="w-3.5 h-3.5" />
                   复制路径
                 </MenuButton>
+                <div className="sidebar-context-divider" />
                 <MenuButton danger onClick={() => handleDelete({ kind: 'session', filePath: contextMenu.sessionPath })}>
                   <IconTrash className="w-3.5 h-3.5" />
                   删除
@@ -399,6 +450,10 @@ export default function Sidebar() {
     </aside>
   );
 }
+
+// ============================================================
+// Sub-components
+// ============================================================
 
 function ProjectTree({
   item,
@@ -425,32 +480,49 @@ function ProjectTree({
 }) {
   const { project, sessions } = item;
 
+  // 按时间分组
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 86400000);
+  const weekAgo = new Date(today.getTime() - 7 * 86400000);
+
+  const groups: TimeGroup[] = [
+    { label: '今天', sessions: [] },
+    { label: '昨天', sessions: [] },
+    { label: '本周', sessions: [] },
+    { label: '更早', sessions: [] },
+  ];
+
+  for (const session of sessions) {
+    const ts = new Date(session.timestamp);
+    if (ts >= today) {
+      groups[0].sessions.push(session);
+    } else if (ts >= yesterday) {
+      groups[1].sessions.push(session);
+    } else if (ts >= weekAgo) {
+      groups[2].sessions.push(session);
+    } else {
+      groups[3].sessions.push(session);
+    }
+  }
+
+  const activeGroups = groups.filter((g) => g.sessions.length > 0);
+
   return (
-    <div className="mb-0.5">
+    <div className="sidebar-project">
       <div
         onContextMenu={(e) => onProjectContextMenu(e, project.name, project.dir_name)}
-        className={`group flex items-center gap-1 rounded-lg px-2 py-1.5 transition-all duration-150 ${
-          activeProject
-            ? 'bg-gray-200/90 text-gray-950 shadow-sm dark:bg-gray-800/90 dark:text-white'
-            : 'text-gray-600 hover:bg-gray-200/50 dark:text-gray-300 dark:hover:bg-gray-800/50'
-        }`}
+        className={`sidebar-project-header ${activeProject ? 'sidebar-project-active' : ''}`}
       >
-        <button onClick={onToggle} className="min-w-0 flex-1 text-left" title={expanded ? '折叠项目' : '展开项目'}>
-          <div className="flex items-center gap-1.5">
-            <IconFolder className={`h-3.5 w-3.5 flex-shrink-0 transition-colors ${activeProject ? 'text-gray-500 dark:text-gray-300' : 'text-gray-400/70'}`} />
-            <span className="truncate text-xs font-medium">{project.name}</span>
-            <span className="ml-auto text-[10px] tabular-nums text-gray-400/60">{project.sessions.length}</span>
-          </div>
-          <div className="mt-0.5 truncate text-[10px] text-gray-400/50 dark:text-gray-500/50">
-            {project.path}
-          </div>
+        <button onClick={onToggle} className="sidebar-project-toggle" title={expanded ? '折叠' : '展开'}>
+          <ChevronIcon className={`sidebar-chevron ${expanded ? 'sidebar-chevron-open' : ''}`} />
+          <IconFolder className={`sidebar-folder-icon ${activeProject ? 'text-amber-500 dark:text-amber-400' : ''}`} />
+          <span className="sidebar-project-name">{project.name}</span>
+          <span className="sidebar-project-count">{sessions.length}</span>
         </button>
         <button
-          onClick={(event) => {
-            event.stopPropagation();
-            onNewSession();
-          }}
-          className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-gray-400/60 opacity-0 transition-all hover:bg-gray-300/50 hover:text-gray-600 group-hover:opacity-100 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+          onClick={(e) => { e.stopPropagation(); onNewSession(); }}
+          className="sidebar-inline-add"
           title="在此项目中新建会话"
         >
           <PlusIcon className="w-3 h-3" />
@@ -458,21 +530,24 @@ function ProjectTree({
       </div>
 
       {expanded && (
-        <div className="mt-0.5 pl-6">
-          {sessions.map((session) => (
-            <SessionRow
-              key={session.file_path}
-              session={session}
-              active={activeSessionFile === session.file_path}
-              onClick={() => onSwitchSession(session.file_path)}
-              onContextMenu={(event) => onSessionContextMenu(event, session.file_path)}
-              onRename={() => onRename(session.file_path)}
-            />
+        <div className="sidebar-sessions">
+          {activeGroups.map((group) => (
+            <div key={group.label} className="sidebar-time-group">
+              <div className="sidebar-time-label">{group.label}</div>
+              {group.sessions.map((session) => (
+                <SessionRow
+                  key={session.file_path}
+                  session={session}
+                  active={activeSessionFile === session.file_path}
+                  onClick={() => onSwitchSession(session.file_path)}
+                  onContextMenu={(event) => onSessionContextMenu(event, session.file_path)}
+                  onRename={() => onRename(session.file_path)}
+                />
+              ))}
+            </div>
           ))}
           {sessions.length === 0 && (
-            <div className="px-2 py-2 text-[11px] text-gray-400/50 dark:text-gray-500/50">
-              暂无会话
-            </div>
+            <div className="sidebar-empty-hint">暂无会话</div>
           )}
         </div>
       )}
@@ -495,28 +570,24 @@ function SessionRow({
 }) {
   return (
     <div
-      className={`group flex items-start gap-1 rounded-lg px-1.5 py-1.5 transition-all duration-150 ${
-        active
-          ? 'bg-gray-200/90 text-gray-950 shadow-sm dark:bg-gray-800/90 dark:text-white'
-          : 'text-gray-600 hover:bg-gray-200/50 dark:text-gray-300 dark:hover:bg-gray-800/50'
-      }`}
+      className={`sidebar-session ${active ? 'sidebar-session-active' : ''}`}
       onContextMenu={onContextMenu}
     >
-      <button onClick={onClick} className="min-w-0 flex-1 text-left">
-        <div className="truncate text-xs leading-snug">{sessionTitle(session)}</div>
-        <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-gray-400/60 dark:text-gray-500/60">
-          <span>{formatRelativeTime(session.timestamp)}</span>
-          {typeof session.message_count === 'number' && session.message_count > 0 && (
-            <>
-              <span>·</span>
+      <button onClick={onClick} className="sidebar-session-btn">
+        <div className="sidebar-session-dot" />
+        <div className="sidebar-session-content">
+          <div className="sidebar-session-title">{sessionTitle(session)}</div>
+          <div className="sidebar-session-meta">
+            <span>{formatRelativeTime(session.timestamp)}</span>
+            {typeof session.message_count === 'number' && session.message_count > 0 && (
               <span>{session.message_count} 条消息</span>
-            </>
-          )}
+            )}
+          </div>
         </div>
       </button>
       <button
         onClick={onRename}
-        className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-gray-400/60 opacity-0 transition-all hover:bg-gray-300/50 hover:text-gray-600 group-hover:opacity-100 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+        className="sidebar-inline-action"
         title="重命名"
       >
         <IconEdit className="w-3 h-3" />
@@ -525,56 +596,37 @@ function SessionRow({
   );
 }
 
-function MenuButton({
-  children,
-  danger,
-  onClick,
-}: {
-  children: ReactNode;
-  danger?: boolean;
-  onClick: () => void;
-}) {
+function MenuButton({ children, danger, onClick }: { children: ReactNode; danger?: boolean; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors ${
-        danger
-          ? 'text-red-500 hover:bg-red-50/70 dark:text-red-400 dark:hover:bg-red-950/30'
-          : 'text-gray-600 hover:bg-gray-100/70 dark:text-gray-300 dark:hover:bg-gray-800/70'
-      }`}
+      className={`sidebar-context-item ${danger ? 'sidebar-context-item-danger' : ''}`}
     >
       {children}
     </button>
   );
 }
 
-function RailButton({
-  title,
-  onClick,
-  children,
-}: {
-  title: string;
-  onClick: () => void;
-  children: ReactNode;
-}) {
+function RailButton({ title, onClick, children }: { title: string; onClick: () => void; children: ReactNode }) {
   return (
-    <button
-      title={title}
-      onClick={onClick}
-      className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400/70 transition-all duration-150 hover:bg-gray-200/50 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-gray-800/50 dark:hover:text-gray-200"
-    >
+    <button title={title} onClick={onClick} className="sidebar-rail-btn">
       {children}
     </button>
   );
 }
 
-function EmptyState({ label }: { label: string }) {
+function SidebarFooterButton({ onClick, icon, label }: { onClick: () => void; icon: ReactNode; label: string }) {
   return (
-    <div className="px-3 py-4 text-center text-[11px] text-gray-400/50 dark:text-gray-500/50">
-      {label}
-    </div>
+    <button onClick={onClick} className="sidebar-footer-btn">
+      {icon}
+      <span>{label}</span>
+    </button>
   );
 }
+
+// ============================================================
+// Helpers
+// ============================================================
 
 function sessionTitle(session: SessionMeta) {
   return session.session_name || session.cwd?.split(/[\\/]/).filter(Boolean).pop() || formatTimestamp(session.timestamp);
@@ -589,11 +641,11 @@ function formatRelativeTime(ts: string) {
     const diff = Date.now() - new Date(ts).getTime();
     const minutes = Math.max(0, Math.floor(diff / 60000));
     if (minutes < 1) return '刚刚';
-    if (minutes < 60) return `${minutes}m`;
+    if (minutes < 60) return `${minutes} 分钟前`;
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h`;
+    if (hours < 24) return `${hours} 小时前`;
     const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}d`;
+    if (days < 7) return `${days} 天前`;
     return formatTimestamp(ts);
   } catch {
     return ts.slice(0, 16);
@@ -608,6 +660,10 @@ function formatTimestamp(ts: string): string {
     return ts.slice(0, 16);
   }
 }
+
+// ============================================================
+// Icons
+// ============================================================
 
 function PlusIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
@@ -625,23 +681,29 @@ function SearchIcon({ className = 'w-4 h-4' }: { className?: string }) {
   );
 }
 
-function SidebarToggleIcon({
-  className = 'w-4 h-4',
-  collapsed = false,
-}: {
-  className?: string;
-  collapsed?: boolean;
-}) {
+function XIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ className = 'w-3 h-3' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+function SidebarToggleIcon({ className = 'w-4 h-4', collapsed = false }: { className?: string; collapsed?: boolean }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <rect x="4" y="5" width="16" height="14" rx="2" strokeWidth={1.7} />
       <path strokeLinecap="round" strokeWidth={1.7} d="M9 5v14" />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.7}
-        d={collapsed ? 'M14 9l3 3-3 3' : 'M17 9l-3 3 3 3'}
-      />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7}
+        d={collapsed ? 'M14 9l3 3-3 3' : 'M17 9l-3 3 3 3'} />
     </svg>
   );
 }

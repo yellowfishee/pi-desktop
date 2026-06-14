@@ -8,6 +8,18 @@ type ToolCallPartial = {
   id?: string;
 };
 
+// ============================================================
+// Batch delta type — used by flushQueuedMessageUpdates
+// ============================================================
+
+export type BatchDelta = {
+  text: string;
+  thinking: string;
+  toolArgs: string;
+};
+
+export type BatchUpdate = Map<number, BatchDelta>;
+
 interface MessageStoreState {
   messages: UIMessage[];
 
@@ -27,14 +39,23 @@ interface MessageStoreState {
   completeMessage: (messageId: string, reason: string) => void;
   errorMessage: (messageId: string, reason: string) => void;
 
+  // 批量流式更新 — 单次 set 完成所有 delta 追加
+  applyBatchDeltas: (updates: Array<[string, BatchUpdate]>) => void;
+
   // 工具执行更新
   updateToolExecution: (toolCallId: string, status: string, result?: unknown) => void;
+
+  // 批量工具执行更新
+  applyBatchToolUpdates: (updates: Array<[string, { status: string; result?: unknown }]>) => void;
 
   // 用户消息
   addUserMessage: (text: string, images?: ImageContent[]) => void;
 
   // 系统消息
   addSystemMessage: (message: Partial<UIMessage> & { role: UIMessage['role'] }) => void;
+
+  // 中止标记 — 避免遍历全部消息
+  abortLastAssistant: () => void;
 }
 
 let messageCounter = 0;
@@ -137,6 +158,65 @@ function attachToolResults(messages: UIMessage[]): UIMessage[] {
   return normalized;
 }
 
+// ============================================================
+// Helper: apply deltas to a single message's content blocks
+// Returns new content array or undefined if no changes
+// ============================================================
+
+function applyDeltasToContent(
+  content: ContentBlock[],
+  deltas: BatchUpdate,
+): ContentBlock[] | undefined {
+  let changed = false;
+  const blocks = [...content];
+
+  for (const [contentIndex, delta] of deltas) {
+    const existingIdx = blocks.findIndex((b) => b.contentIndex === contentIndex);
+    const existing = existingIdx >= 0 ? blocks[existingIdx] : undefined;
+
+    if (delta.text) {
+      changed = true;
+      if (existing && existing.type === 'text') {
+        blocks[existingIdx] = {
+          ...existing,
+          text: (existing.text || '') + delta.text,
+          isStreaming: true,
+        };
+      } else {
+        blocks.push({ type: 'text', contentIndex, text: delta.text, isStreaming: true });
+      }
+    }
+
+    if (delta.thinking) {
+      changed = true;
+      if (existing && existing.type === 'thinking') {
+        blocks[existingIdx] = {
+          ...existing,
+          thinking: (existing.thinking || '') + delta.thinking,
+        };
+      } else {
+        blocks.push({ type: 'thinking', contentIndex, thinking: delta.thinking });
+      }
+    }
+
+    if (delta.toolArgs) {
+      changed = true;
+      if (existingIdx >= 0 && blocks[existingIdx].type === 'toolCall') {
+        blocks[existingIdx] = {
+          ...blocks[existingIdx],
+          argumentsRaw: (blocks[existingIdx].argumentsRaw || '') + delta.toolArgs,
+        };
+      }
+    }
+  }
+
+  if (!changed) return undefined;
+
+  // Sort by contentIndex
+  blocks.sort((a, b) => a.contentIndex - b.contentIndex);
+  return blocks;
+}
+
 export const useMessageStore = create<MessageStoreState>((set, get) => ({
   messages: [],
 
@@ -145,7 +225,6 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
   clearMessages: () => set({ messages: [] }),
 
   ensureAssistantMessage: () => {
-    // 避免重复创建：如果已有未完成的 assistant 消息，直接返回
     const msgs = get().messages;
     for (let i = msgs.length - 1; i >= 0; i--) {
       if (msgs[i].role === 'assistant' && !msgs[i].isComplete) {
@@ -162,6 +241,93 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
     };
     set((state) => ({ messages: [...state.messages, msg] }));
     return id;
+  },
+
+  // ============================================================
+  // 批量流式更新 — 单次 set 完成所有 delta 追加，避免多次 map
+  // ============================================================
+
+  applyBatchDeltas: (updates) => {
+    if (updates.length === 0) return;
+
+    set((state) => {
+      if (updates.length === 1) {
+        const [messageId, deltas] = updates[0];
+        const messageIndex = state.messages.findIndex((msg) => msg.id === messageId);
+        if (messageIndex === -1) return state;
+
+        const message = state.messages[messageIndex];
+        const newContent = applyDeltasToContent(message.content, deltas);
+        if (!newContent) return state;
+
+        const newMessages = state.messages.slice();
+        newMessages[messageIndex] = { ...message, content: newContent };
+        return { messages: newMessages };
+      }
+
+      const updateMap = new Map(updates);
+
+      let anyChanged = false;
+      const newMessages = state.messages.map((msg) => {
+        const deltas = updateMap.get(msg.id);
+        if (!deltas) return msg;
+
+        const newContent = applyDeltasToContent(msg.content, deltas);
+        if (!newContent) return msg;
+
+        anyChanged = true;
+        return { ...msg, content: newContent };
+      });
+
+      return anyChanged ? { messages: newMessages } : state;
+    });
+  },
+
+  // ============================================================
+  // 批量工具执行更新 — 单次 set 完成多个 toolCall 状态变更
+  // ============================================================
+
+  applyBatchToolUpdates: (updates) => {
+    if (updates.length === 0) return;
+
+    set((state) => {
+      // Build lookup: toolCallId -> update
+      const toolUpdateMap = new Map(updates);
+      let anyChanged = false;
+
+      const newMessages = state.messages.map((msg) => {
+        // Quick check: does this message have any toolCall blocks that need updating?
+        let msgChanged = false;
+        const newBlocks = msg.content.map((b) => {
+          if (b.type !== 'toolCall') return b;
+          const update = toolUpdateMap.get(b.toolCallId || '');
+          if (!update) return b;
+
+          msgChanged = true;
+          const toolResult = update.result as ToolResultMessage | undefined;
+          const duration = update.result && typeof update.result === 'object' && 'duration' in update.result
+            ? (update.result as { duration?: number }).duration
+            : undefined;
+
+          // 避免重复设置结果
+          if (update.status !== 'running' && b.toolResult) return b;
+
+          return {
+            ...b,
+            toolStatus: update.status as ContentBlock['toolStatus'],
+            toolResult,
+            partialResult: update.status === 'running' ? update.result : undefined,
+            duration: duration ?? b.duration,
+          };
+        });
+
+        if (!msgChanged) return msg;
+        anyChanged = true;
+        return { ...msg, content: newBlocks };
+      });
+
+      return anyChanged ? { messages: newMessages } : state;
+    });
   },
 
   appendTextContent: (messageId, contentIndex, delta) => {
@@ -362,5 +528,19 @@ export const useMessageStore = create<MessageStoreState>((set, get) => ({
       ...message,
     } as UIMessage;
     set((state) => ({ messages: [...state.messages, sysMsg] }));
+  },
+
+  abortLastAssistant: () => {
+    const msgs = get().messages;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === 'assistant' && !msgs[i].isComplete) {
+        set((state) => ({
+          messages: state.messages.map((msg, idx) =>
+            idx === i ? { ...msg, isComplete: true, stopReason: 'aborted' } : msg
+          ),
+        }));
+        break;
+      }
+    }
   },
 }));

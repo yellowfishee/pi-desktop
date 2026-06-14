@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useMessageStore } from '../../stores/messageStore';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useUIStore } from '../../stores/uiStore';
@@ -11,7 +11,6 @@ export default function ChatPanel() {
   const messages = useMessageStore((s) => s.messages);
   const isStreaming = useSessionStore((s) => s.isStreaming);
   const sessionLoading = useSessionStore((s) => s.sessionLoading);
-  const extensionStatuses = useUIStore((s) => s.extensionStatuses);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const toggleProperties = useUIStore((s) => s.toggleProperties);
@@ -23,12 +22,12 @@ export default function ChatPanel() {
   const shouldAutoScrollRef = useRef(true);
   const scrollFrameRef = useRef<number | null>(null);
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     shouldAutoScrollRef.current = distanceFromBottom < 120;
-  };
+  }, []);
 
   useEffect(() => {
     if (!bottomRef.current || !shouldAutoScrollRef.current) return;
@@ -104,20 +103,31 @@ export default function ChatPanel() {
         </div>
       </div>
 
-      {/* 生成中的扩展状态 (TPS 等) */}
-      {isStreaming && Object.keys(extensionStatuses).length > 0 && (
-        <div className="mx-auto w-full max-w-4xl px-5 sm:px-7 lg:px-8">
-          <div className="py-1 text-xxs text-gray-400/60 dark:text-gray-500/60 flex items-center gap-3 flex-wrap min-h-[22px]">
-            {Object.entries(extensionStatuses).map(([key, text]) => (
-              <span key={key} className="opacity-60">
-                {text.replace(/\u001b\[[0-9;]*m/g, '')}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* 生成中的扩展状态 (TPS 等) — 独立组件隔离渲染 */}
+      {isStreaming && <ExtensionStatusBar />}
 
       <StatusBar />
+    </div>
+  );
+}
+
+function ExtensionStatusBar() {
+  const extensionStatuses = useUIStore((s) => s.extensionStatuses);
+  const entries = useMemo(
+    () => Object.entries(extensionStatuses),
+    [extensionStatuses],
+  );
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="mx-auto w-full max-w-4xl px-5 sm:px-7 lg:px-8">
+      <div className="py-1 text-xxs text-gray-400/60 dark:text-gray-500/60 flex items-center gap-3 flex-wrap min-h-[22px]">
+        {entries.map(([key, text]) => (
+          <span key={key} className="opacity-60">
+            {text.replace(/\u001b\[[0-9;]*m/g, '')}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

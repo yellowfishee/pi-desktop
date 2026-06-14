@@ -85,7 +85,7 @@ export default function ChangesPanel() {
       ) : !activeProjectDir ? (
         <PanelEmpty>选择项目后查看当前分支变更文件</PanelEmpty>
       ) : files.length === 0 ? (
-        <PanelEmpty>当前会话暂无文件变更</PanelEmpty>
+        <PanelEmpty>当前分支暂无 Git 变更</PanelEmpty>
       ) : (
         <div className="flex-1 flex flex-col min-h-0">
           <div className={`overflow-y-auto ${selectedChange ? 'h-[42%] border-b border-gray-200 dark:border-gray-700' : 'flex-1'}`}>
@@ -234,6 +234,10 @@ function FileTreeNode({
 }
 
 function GitDiffPreview({ file }: { file: GitChangeFile }) {
+  const previewLines = useMemo(() => file.preview.split('\n'), [file.preview]);
+  const lines = useMemo(() => previewLines.slice(0, 120), [previewLines]);
+  const truncated = previewLines.length > lines.length;
+
   if (!file.preview.trim()) {
     return (
       <div className="rounded-lg border border-dashed border-gray-200 px-3 py-3 text-xs text-gray-400 dark:border-gray-700">
@@ -241,9 +245,6 @@ function GitDiffPreview({ file }: { file: GitChangeFile }) {
       </div>
     );
   }
-
-  const lines = file.preview.split('\n').slice(0, 120);
-  const truncated = file.preview.split('\n').length > lines.length;
 
   return (
     <div className="overflow-hidden rounded-lg border border-gray-700/30 bg-[#161b22]">

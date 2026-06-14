@@ -14,7 +14,10 @@ export default function MessageInput() {
     if (!trimmed || isStreaming) return;
 
     // 添加用户消息
-    useMessageStore.getState().addUserMessage(trimmed);
+    const messageStore = useMessageStore.getState();
+    messageStore.addUserMessage(trimmed);
+    messageStore.ensureAssistantMessage();
+    useSessionStore.getState().setStreaming(true);
 
     setText('');
 
@@ -23,6 +26,8 @@ export default function MessageInput() {
       await sendCommand({ type: 'prompt', message: trimmed });
     } catch (e) {
       console.error('Failed to send prompt:', e);
+      useSessionStore.getState().setStreaming(false);
+      useMessageStore.getState().abortLastAssistant();
       useMessageStore.getState().addSystemMessage({
         role: 'compactionSummary',
         summary: `发送失败: ${e}`,
@@ -38,18 +43,8 @@ export default function MessageInput() {
   const handleAbort = useCallback(async () => {
     // 乐观更新：立即停止流式状态
     useSessionStore.getState().setStreaming(false);
-    // 标记最后一条 assistant 消息为已中止
-    const msgs = useMessageStore.getState().messages;
-    for (let i = msgs.length - 1; i >= 0; i--) {
-      if (msgs[i].role === 'assistant' && !msgs[i].isComplete) {
-        useMessageStore.setState({
-          messages: msgs.map((m, idx) =>
-            idx === i ? { ...m, isComplete: true, stopReason: 'aborted' } : m
-          ),
-        });
-        break;
-      }
-    }
+    // 标记最后一条 assistant 消息为已中止（避免遍历全部消息）
+    useMessageStore.getState().abortLastAssistant();
     // 发 abort 命令（不等待响应，避免阻塞）
     invoke('send_command', { command: { type: 'abort' } }).catch(() => {});
   }, []);

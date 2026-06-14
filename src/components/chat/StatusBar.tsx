@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useUIStore } from '../../stores/uiStore';
 
@@ -12,12 +13,12 @@ export default function StatusBar() {
 
   const contextPercent = stats?.contextUsage?.percent ?? null;
 
-  const getContextBarColor = () => {
+  const contextBarColor = useMemo(() => {
     if (contextPercent === null) return 'bg-gray-300 dark:bg-gray-600';
     if (contextPercent > 95) return 'bg-red-500';
     if (contextPercent > 80) return 'bg-yellow-500';
     return 'bg-blue-500';
-  };
+  }, [contextPercent]);
 
   return (
     <div className="mx-auto flex min-h-[24px] w-full max-w-4xl flex-shrink-0 items-center gap-3 px-5 pb-2.5 text-[10px] text-gray-400/50 dark:text-gray-500/50 sm:px-7 lg:px-8">
@@ -39,7 +40,7 @@ export default function StatusBar() {
         <span className="flex items-center gap-1">
           <span className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
             <span
-              className={`block h-full rounded-full transition-all ${getContextBarColor()}`}
+              className={`block h-full rounded-full transition-all ${contextBarColor}`}
               style={{ width: `${Math.min(contextPercent, 100)}%` }}
             />
           </span>

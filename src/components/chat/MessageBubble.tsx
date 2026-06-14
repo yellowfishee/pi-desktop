@@ -54,6 +54,7 @@ function UserBubble({ message }: Props) {
 
 function AssistantBubble({ message }: Props) {
   const [copied, setCopied] = useState(false);
+  const waitingForFirstBlock = !message.isComplete && message.content.length === 0;
 
   const handleCopy = async () => {
     const text = message.content
@@ -86,15 +87,17 @@ function AssistantBubble({ message }: Props) {
           </span>
         </div>
 
-        <div className="space-y-4">
-          {message.content.map((block, i) => (
-            <ContentBlockRenderer key={`${block.contentIndex}-${i}`} block={block} />
-          ))}
-        </div>
-
-        {!message.isComplete && message.content.length > 0 && (
-          <span className="streaming-cursor text-blue-500" />
+        {waitingForFirstBlock ? (
+          <WaitingForAssistant />
+        ) : (
+          <div className="space-y-4">
+            {message.content.map((block, i) => (
+              <ContentBlockRenderer key={`${block.contentIndex}-${i}`} block={block} />
+            ))}
+          </div>
         )}
+
+
 
         {message.isComplete && message.stopReason !== 'error' && (
           <div className="mt-3 flex items-center gap-1">
@@ -115,6 +118,19 @@ function AssistantBubble({ message }: Props) {
         )}
       </div>
     </article>
+  );
+}
+
+function WaitingForAssistant() {
+  return (
+    <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
+      <span className="flex gap-1">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current [animation-delay:120ms]" />
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current [animation-delay:240ms]" />
+      </span>
+      <span>正在思考</span>
+    </div>
   );
 }
 
