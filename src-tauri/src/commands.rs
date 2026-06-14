@@ -640,3 +640,21 @@ fn build_untracked_preview(root: &Path, path: &str) -> String {
         .collect::<Vec<_>>()
         .join("\n")
 }
+
+#[tauri::command]
+pub async fn open_new_window(app_handle: tauri::AppHandle) -> Result<(), String> {
+    use tauri::WebviewWindowBuilder;
+    let id = chrono::Utc::now().timestamp_millis().to_string();
+    WebviewWindowBuilder::new(
+        &app_handle,
+        format!("pi-desktop-{}", id),
+        tauri::WebviewUrl::App("index.html".into()),
+    )
+    .title("Pi Desktop")
+    .inner_size(1200.0, 800.0)
+    .min_inner_size(600.0, 400.0)
+    .center()
+    .build()
+    .map(|_| ())
+    .map_err(|e| e.to_string())
+}

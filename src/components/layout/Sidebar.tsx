@@ -10,6 +10,7 @@ import {
   renameSessionFile,
   sendCommand,
 } from '../../services/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import type { ProjectMeta, SessionMeta } from '../../types/rpc';
 import {
   IconEdit,
@@ -446,6 +447,7 @@ export default function Sidebar() {
           {projects.length} 个项目 · {totalSessions} 个会话
         </div>
         <div className="sidebar-footer-actions">
+          <SidebarFooterButton onClick={() => invoke('open_new_window').catch(console.error)} icon={<NewWindowIcon className="w-3.5 h-3.5" />} label="新窗口" />
           <SidebarFooterButton onClick={toggleProperties} icon={<CheckPanelIcon className="w-3.5 h-3.5" />} label="概览" />
           <SidebarFooterButton onClick={() => setSettingsOpen(true)} icon={<IconSettings className="w-3.5 h-3.5" />} label="设置" />
         </div>
@@ -810,6 +812,14 @@ function ExportIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+    </svg>
+  );
+}
+
+function NewWindowIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
     </svg>
   );
 }
