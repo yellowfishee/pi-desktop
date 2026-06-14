@@ -13,7 +13,7 @@ function MarkdownContent({ text, isStreaming }: Props) {
   const displayText = useMemo(() => normalizeAwkwardLineBreaks(renderedText), [renderedText]);
 
   return (
-    <div className="markdown-content overflow-x-auto">
+    <div className="overflow-x-auto break-words">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
@@ -84,7 +84,7 @@ function MarkdownContent({ text, isStreaming }: Props) {
           hr: () => <hr className="my-3 border-[var(--border-color)]" />,
           ul: ({ children }) => <ul className="list-disc list-inside my-1.5 space-y-0.5">{children}</ul>,
           ol: ({ children }) => <ol className="list-decimal list-inside my-1.5 space-y-0.5">{children}</ol>,
-          p: ({ children }) => <p className="my-1.5">{children}</p>,
+          p: ({ children }) => <p className="my-1.5 break-words">{children}</p>,
         }}
       >
         {displayText}

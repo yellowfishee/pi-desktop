@@ -454,7 +454,7 @@ const ContentBlockRenderer = memo(function ContentBlockRenderer({ block }: { blo
   switch (block.type) {
     case 'text':
       return (
-        <div className="min-w-0 overflow-hidden text-[13px] text-[var(--fg-color)] leading-relaxed">
+        <div className="min-w-0 overflow-hidden text-[13px] text-[var(--fg-color)] leading-relaxed break-words">
           <MarkdownContent text={block.text || ''} isStreaming={block.isStreaming || false} />
         </div>
       );
