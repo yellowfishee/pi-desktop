@@ -21,6 +21,7 @@ interface SessionStoreState {
   thinkingLevel: ThinkingLevel;
   isStreaming: boolean;
   isCompacting: boolean;
+  autoCompactionEnabled: boolean;
   messageCount: number;
   pendingMessageCount: number;
   stats: SessionStats | null;
@@ -34,6 +35,7 @@ interface SessionStoreState {
   refreshStats: () => Promise<void>;
   setStreaming: (val: boolean) => void;
   setCompacting: (val: boolean) => void;
+  setAutoCompaction: (enabled: boolean) => void;
   setSessionLoading: (val: boolean) => void;
   setAvailableModels: (models: ModelInfo[]) => void;
   loadModels: () => Promise<void>;
@@ -49,6 +51,7 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
   thinkingLevel: 'medium',
   isStreaming: false,
   isCompacting: false,
+  autoCompactionEnabled: true,
   messageCount: 0,
   pendingMessageCount: 0,
   model: null,
@@ -102,6 +105,7 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
   setStreaming: (val) => set({ isStreaming: val }),
 
   setCompacting: (val) => set({ isCompacting: val }),
+  setAutoCompaction: (enabled) => set({ autoCompactionEnabled: enabled }),
 
   setSessionLoading: (val) => set({ sessionLoading: val }),
 

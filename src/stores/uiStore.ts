@@ -51,6 +51,10 @@ interface UIStoreState {
   steeringQueue: string[];
   followUpQueue: string[];
 
+  // 消息跳转信号
+  jumpToUserMessage: number; // 递增 tick，ChatPanel 监听后执行跳转
+  jumpDirection: 'prev' | 'next';
+
   // 操作
   toggleSidebar: () => void;
   setSidebarWidth: (w: number) => void;
@@ -74,6 +78,7 @@ interface UIStoreState {
   setChangesWidth: (w: number) => void;
   setActiveDiff: (diff: FileDiff | null) => void;
   setQueues: (steering: string[], followUp: string[]) => void;
+  triggerJumpToUserMessage: (direction: 'prev' | 'next') => void;
 }
 
 export const useUIStore = create<UIStoreState>((set, get) => ({
@@ -98,6 +103,8 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
   activeDiff: null,
   steeringQueue: [],
   followUpQueue: [],
+  jumpToUserMessage: 0,
+  jumpDirection: 'prev',
 
   toggleSidebar: () => {
     set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed }));
@@ -188,6 +195,9 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
   setChangesWidth: (w) => set({ changesWidth: w }),
   setActiveDiff: (diff) => set({ activeDiff: diff }),
   setQueues: (steering, followUp) => set({ steeringQueue: steering, followUpQueue: followUp }),
+
+  triggerJumpToUserMessage: (direction) =>
+    set((s) => ({ jumpToUserMessage: s.jumpToUserMessage + 1, jumpDirection: direction })),
 }));
 
 function applyTheme(theme: 'light' | 'dark' | 'system') {

@@ -8,9 +8,12 @@ import PropertiesPanel from './components/panels/PropertiesPanel';
 import ChangesPanel from './components/panels/ChangesPanel';
 import SettingsPanel from './components/panels/SettingsPanel';
 import NotificationStack from './components/shared/NotificationStack';
+import ExtensionDialogModal from './components/shared/ExtensionDialogModal';
 import { ConfirmProvider } from './components/shared/Confirm';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 function App() {
+  useKeyboardShortcuts();
   const piAvailable = useUIStore((s) => s.piAvailable);
   const bashAvailable = useUIStore((s) => s.bashAvailable);
   const piCheckDone = useUIStore((s) => s.piCheckDone);
@@ -184,6 +187,7 @@ function App() {
 
       <NotificationStack />
       <SettingsPanel />
+      <ExtensionDialogModal />
     </div>
     </ConfirmProvider>
   );

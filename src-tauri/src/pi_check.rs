@@ -29,7 +29,7 @@ pub fn find_pi_with_path(preferred_path: Option<&str>) -> PiCheckResult {
     result
 }
 
-fn check_bash(result: &mut PiCheckResult) {
+fn check_bash(_result: &mut PiCheckResult) {
     #[cfg(not(target_os = "windows"))]
     return;
 
@@ -283,31 +283,43 @@ fn find_pi_path() -> Option<String> {
     }
 
     // 2. 尝试 where/which
-    let cmd = if cfg!(target_os = "windows") {
+    #[cfg(target_os = "windows")]
+    {
         let mut where_cmd = Command::new("where");
         where_cmd.arg("pi");
         {
             use std::os::windows::process::CommandExt;
             where_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
         }
-        where_cmd.output()
-    } else {
-        Command::new("which").arg("pi").output()
-    };
+        if let Ok(output) = where_cmd.output() {
+            if output.status.success() {
+                let path = String::from_utf8_lossy(&output.stdout)
+                    .lines()
+                    .next()
+                    .map(|s| s.trim().to_string())
+                    .filter(|p| !p.is_empty() && std::path::Path::new(p).exists());
+                if path.is_some() {
+                    return path;
+                }
+            }
+        }
+    }
 
-    debug_log(&format!("where/which result: {:?}", cmd));
+    #[cfg(not(target_os = "windows"))]
+    {
+        if let Ok(output) = Command::new("which").arg("pi").output() {
+            if output.status.success() {
+                let path = String::from_utf8_lossy(&output.stdout)
+                    .lines()
+                    .next()
+                    .map(|s| s.trim().to_string())
+                    .filter(|p| !p.is_empty() && std::path::Path::new(p).exists());
+                if path.is_some() {
+                    return path;
+                }
+            }
+        }
+    }
 
-    let from_where = cmd.ok()
-        .filter(|o| o.status.success())
-        .and_then(|o| {
-            String::from_utf8_lossy(&o.stdout)
-                .lines()
-                .next()
-                .map(|s| s.trim().to_string())
-        })
-        .filter(|p| !p.is_empty() && std::path::Path::new(p).exists());
-
-    debug_log(&format!("from_where: {:?}", from_where));
-
-    from_where
+    None
 }

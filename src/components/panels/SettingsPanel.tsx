@@ -26,6 +26,7 @@ export default function SettingsPanel() {
   const model = useSessionStore((s) => s.model);
   const availableModels = useSessionStore((s) => s.availableModels);
   const thinkingLevel = useSessionStore((s) => s.thinkingLevel);
+  const autoCompactionEnabled = useSessionStore((s) => s.autoCompactionEnabled);
   const loadModels = useSessionStore((s) => s.loadModels);
   const switchModel = useSessionStore((s) => s.switchModel);
 
@@ -256,6 +257,29 @@ export default function SettingsPanel() {
                   ))}
                 </div>
               </Field>
+
+              <Field label="自动压缩">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoCompactionEnabled}
+                    onChange={async (e) => {
+                      const enabled = e.target.checked;
+                      useSessionStore.getState().setAutoCompaction(enabled);
+                      try {
+                        await sendCommand({ type: 'set_auto_compaction', enabled });
+                      } catch (err) {
+                        console.error('Failed to set auto compaction:', err);
+                        useSessionStore.getState().setAutoCompaction(!enabled);
+                      }
+                    }}
+                    className="h-3.5 w-3.5 rounded border-[var(--border-color)] text-[var(--accent)] focus:ring-[var(--accent)]"
+                  />
+                  <span className="text-xs text-[var(--fg-muted)]">
+                    {autoCompactionEnabled ? '已启用：上下文接近限制时自动压缩' : '已禁用：需要手动触发压缩'}
+                  </span>
+                </label>
+              </Field>
             </Section>
           )}
 
@@ -318,11 +342,16 @@ export default function SettingsPanel() {
           )}
 
           {activeTab === 'shortcuts' && (
-            <Section title="快捷键" description="输入框的键盘行为">
+            <Section title="快捷键" description="全局键盘快捷键（输入框聚焦时无效）">
               <div className="grid max-w-md gap-2 text-xs">
                 <Shortcut keys="Enter" label="发送消息" />
                 <Shortcut keys="Shift + Enter" label="插入换行" />
                 <Shortcut keys="Escape" label="中止当前生成" />
+                <Shortcut keys="⌘/Ctrl + Shift + M" label="循环切换模型" />
+                <Shortcut keys="⌘/Ctrl + Shift + T" label="循环切换思考深度" />
+                <Shortcut keys="⌘/Ctrl + Shift + ↑" label="跳转到上一条提问" />
+                <Shortcut keys="⌘/Ctrl + Shift + ↓" label="跳转到下一条提问" />
+                <Shortcut keys="⌘/Ctrl + K" label="打开设置面板" />
               </div>
             </Section>
           )}

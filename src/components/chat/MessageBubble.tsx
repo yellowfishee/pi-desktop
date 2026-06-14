@@ -32,15 +32,157 @@ function MessageBubble({ message }: Props) {
 export default memo(MessageBubble);
 
 function UserBubble({ message }: Props) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const text = typeof message.rawContent === 'string'
     ? message.rawContent
     : message.content.find((b) => b.type === 'text')?.text || '';
 
+  // 从 rawContent 提取图片（如果是 ContentPart[]）
+  const images = !Array.isArray(message.rawContent)
+    ? []
+    : (message.rawContent as any[]).filter((part: any) => part.type === 'image');
+
+  const handleFork = async () => {
+    setMenuOpen(false);
+    try {
+      const { sendCommand } = await import('../../services/tauri');
+      const { useSessionStore } = await import('../../stores/sessionStore');
+      const { useMessageStore } = await import('../../stores/messageStore');
+      const { listSessions } = await import('../../services/tauri');
+
+      const result = await sendCommand({ type: 'fork', entryId: message.entryId });
+      if (result.success && result.data) {
+        const data = result.data as any;
+        if (data.sessionId && data.sessionFile) {
+          useMessageStore.getState().clearMessages();
+          useSessionStore.getState().setActiveSession(data.sessionId, data.sessionFile);
+          // 重新加载线程列表
+          try {
+            const projects = await listSessions();
+            useSessionStore.getState().setSessions(projects);
+          } catch { /* ignore */ }
+          // 发送 get_state 初始化新会话
+          const stateResult = await sendCommand({ type: 'get_state' });
+          if (stateResult.success && stateResult.data) {
+            const s = stateResult.data as any;
+            useSessionStore.getState().updateState({
+              model: s.model,
+              thinkingLevel: s.thinkingLevel || 'medium',
+              isStreaming: s.isStreaming || false,
+              isCompacting: s.isCompacting || false,
+              sessionName: s.sessionName,
+              messageCount: s.messageCount || 0,
+              pendingMessageCount: s.pendingMessageCount || 0,
+            } as any);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Fork failed:', e);
+    }
+  };
+
+  const handleClone = async () => {
+    setMenuOpen(false);
+    try {
+      const { sendCommand } = await import('../../services/tauri');
+      const { useSessionStore } = await import('../../stores/sessionStore');
+      const { useMessageStore } = await import('../../stores/messageStore');
+      const { listSessions } = await import('../../services/tauri');
+
+      const result = await sendCommand({ type: 'clone' });
+      if (result.success && result.data) {
+        const data = result.data as any;
+        if (data.sessionId && data.sessionFile) {
+          useMessageStore.getState().clearMessages();
+          useSessionStore.getState().setActiveSession(data.sessionId, data.sessionFile);
+          try {
+            const projects = await listSessions();
+            useSessionStore.getState().setSessions(projects);
+          } catch { /* ignore */ }
+          const stateResult = await sendCommand({ type: 'get_state' });
+          if (stateResult.success && stateResult.data) {
+            const s = stateResult.data as any;
+            useSessionStore.getState().updateState({
+              model: s.model,
+              thinkingLevel: s.thinkingLevel || 'medium',
+              isStreaming: s.isStreaming || false,
+              isCompacting: s.isCompacting || false,
+              sessionName: s.sessionName,
+              messageCount: s.messageCount || 0,
+              pendingMessageCount: s.pendingMessageCount || 0,
+            } as any);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Clone failed:', e);
+    }
+  };
+
   return (
-    <article className="mb-7 flex justify-end">
+    <article className="group mb-7 flex flex-col items-end">
+      {/* 操作菜单 */}
+      <div className="relative mr-2 mb-1">
+        <button
+          onClick={() => setMenuOpen((o) => !o)}
+          className={`flex h-6 w-6 items-center justify-center rounded-md text-[var(--fg-subtle)] opacity-0 transition-all hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)] group-hover:opacity-100 ${menuOpen ? 'opacity-100 bg-[var(--hover-bg)]' : ''}`}
+          title="更多操作"
+        >
+          <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" />
+          </svg>
+        </button>
+
+        {menuOpen && (
+          <>
+            {/* backdrop 点击关闭 */}
+            <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
+            <div className="absolute right-0 top-full z-40 mt-1 min-w-[140px] overflow-hidden rounded-lg border border-[var(--border-color)] bg-[var(--surface-bg)] shadow-xl">
+              <button
+                onClick={handleFork}
+                className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--fg-color)] hover:bg-[var(--hover-bg)] transition-colors"
+              >
+                <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+                从此处 Fork
+              </button>
+              <button
+                onClick={handleClone}
+                className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[var(--fg-color)] hover:bg-[var(--hover-bg)] transition-colors"
+              >
+                <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Clone 会话
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
       <div className="max-w-[82%] sm:max-w-[72%]">
-        <div className="rounded-xl border border-[var(--border-color)] bg-[var(--raised-bg)] px-4 py-3 text-sm text-[var(--fg-color)]">
-          <p className="whitespace-pre-wrap break-words leading-relaxed">{text}</p>
+        <div className="overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--raised-bg)]">
+          {/* 图片 */}
+          {images.length > 0 && (
+            <div className="flex flex-wrap gap-1 p-2 pb-0">
+              {images.map((img: any, i: number) => (
+                <img
+                  key={i}
+                  src={`data:${img.mimeType};base64,${img.data}`}
+                  alt={`图片 ${i + 1}`}
+                  className="max-h-64 max-w-full rounded-md border border-[var(--border-color)] object-cover"
+                />
+              ))}
+            </div>
+          )}
+          {/* 文本 */}
+          {text && (
+            <div className="px-4 py-3 text-sm text-[var(--fg-color)]">
+              <p className="whitespace-pre-wrap break-words leading-relaxed">{text}</p>
+            </div>
+          )}
         </div>
         <div className="mt-1 text-right">
           <span className="text-[10px] text-[var(--fg-subtle)]">

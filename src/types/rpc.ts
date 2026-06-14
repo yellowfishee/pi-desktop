@@ -433,6 +433,7 @@ export interface UIMessage {
   customType?: string;
   display?: boolean;
   isComplete: boolean;
+  entryId?: string;
 }
 
 // --- 附件 ---
@@ -502,6 +503,29 @@ export interface SetSessionNameCommand {
   name: string;
 }
 
+export interface CompactCommand {
+  type: "compact";
+  customInstructions?: string;
+}
+
+export interface SetAutoCompactionCommand {
+  type: "set_auto_compaction";
+  enabled: boolean;
+}
+
+export interface ForkCommand {
+  type: "fork";
+  entryId?: string;
+}
+
+export interface CloneCommand {
+  type: "clone";
+}
+
+export interface GetForkMessagesCommand {
+  type: "get_fork_messages";
+}
+
 export type RpcCommand =
   | PromptCommand
   | AbortCommand
@@ -513,7 +537,12 @@ export type RpcCommand =
   | GetAvailableModelsCommand
   | SetModelCommand
   | SetThinkingLevelCommand
-  | SetSessionNameCommand;
+  | SetSessionNameCommand
+  | CompactCommand
+  | SetAutoCompactionCommand
+  | ForkCommand
+  | CloneCommand
+  | GetForkMessagesCommand;
 
 // --- RPC Response ---
 

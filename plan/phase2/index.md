@@ -22,12 +22,12 @@ Step 2.1 → Step 2.2 → Step 2.3 → Step 2.4 → Step 2.5 → Step 2.6
 
 ## Todo 清单
 
-- [ ] **2.1** 图片上传 + 拖拽粘贴支持
-- [ ] **2.2** Steer / FollowUp 队列交互
-- [ ] **2.3** Compact + Auto-compaction 控制
-- [ ] **2.4** Fork / Clone + 消息分支
-- [ ] **2.5** Extension UI 对话框（select/confirm/input/editor）
-- [ ] **2.6** 快捷键系统 + Cycle Model/Thinking
+- [x] **2.1** 图片上传 + 拖拽粘贴支持
+- [x] **2.2** Steer / FollowUp 队列交互
+- [x] **2.3** Compact + Auto-compaction 控制
+- [x] **2.4** Fork / Clone + 消息分支
+- [x] **2.5** Extension UI 对话框（select/confirm/input/editor）
+- [x] **2.6** 快捷键系统 + Cycle Model/Thinking
 
 ## 已完成的修复（Phase 1.5）
 
