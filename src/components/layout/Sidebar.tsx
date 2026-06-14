@@ -270,11 +270,18 @@ export default function Sidebar() {
     );
     useSessionStore.setState({ sessions: updatedSessions });
 
-    // 持久化到文件（通过重命名命令，将 pinned 信息写入 session_info）
+    // 持久化到文件
     try {
       await renameSessionFile(filePath, session.session_name || '', newPinned);
-      // 不重新加载整个列表，只更新本地状态
-      // 因为我们已经更新了本地状态，且文件已保存
+      // 更新 projects 中对应 session 的 pinned 字段
+      const { projects } = useSessionStore.getState();
+      const updatedProjects = projects.map((p) => ({
+        ...p,
+        sessions: p.sessions.map((s) =>
+          s.file_path === filePath ? { ...s, pinned: newPinned } : s
+        ),
+      }));
+      useSessionStore.getState().setSessions(updatedProjects);
     } catch (e) {
       console.error('Failed to toggle pin:', e);
       // 回滚
