@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, KeyboardEvent, DragEvent, ChangeEvent, ClipboardEvent } from 'react';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useMessageStore } from '../../stores/messageStore';
+import { useUIStore } from '../../stores/uiStore';
 import { sendCommand } from '../../services/tauri';
 import { invoke } from '@tauri-apps/api/core';
 import type { ImageContent } from '../../types/rpc';
@@ -115,9 +116,28 @@ export default function MessageInput() {
 
   const handleSend = useCallback(async () => {
     const trimmed = text.trim();
-    if ((!trimmed && attachments.length === 0) || isStreaming) return;
+    if (!trimmed && attachments.length === 0) return;
 
-    // 添加用户消息
+    // 流式中发送 steer
+    if (isStreaming) {
+      if (!trimmed) return;
+      setText('');
+      try {
+        await sendCommand({
+          type: 'prompt',
+          message: trimmed,
+          streamingBehavior: 'steer',
+        });
+      } catch (e) {
+        console.error('Failed to send steer:', e);
+      }
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+      return;
+    }
+
+    // 非流式：正常发送
     const messageStore = useMessageStore.getState();
     messageStore.addUserMessage(
       trimmed,
@@ -180,6 +200,9 @@ export default function MessageInput() {
   }, []);
 
   const hasContent = text.trim() || attachments.length > 0;
+  const steeringQueue = useUIStore((s) => s.steeringQueue);
+  const followUpQueue = useUIStore((s) => s.followUpQueue);
+  const queuedCount = steeringQueue.length + followUpQueue.length;
 
   return (
     <div className="pb-4 pt-1" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
@@ -221,14 +244,13 @@ export default function MessageInput() {
           onKeyDown={handleKeyDown}
           onInput={handleInput}
           onPaste={handlePaste}
-          placeholder={isStreaming ? '正在生成回复...' : '输入消息，让 Pi 编写代码、解释或检查...'}
-          disabled={isStreaming}
+          placeholder={isStreaming ? '输入补充指令 (Enter 发送 steer)...' : '输入消息，让 Pi 编写代码、解释或检查...'}
           rows={1}
-          className="max-h-[220px] min-h-[54px] w-full resize-none border-0 bg-transparent px-4 py-3 text-sm leading-relaxed text-[var(--fg-color)] placeholder:text-[var(--fg-subtle)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+          className="max-h-[220px] min-h-[54px] w-full resize-none border-0 bg-transparent px-4 py-3 text-sm leading-relaxed text-[var(--fg-color)] placeholder:text-[var(--fg-subtle)] focus:outline-none"
         />
 
         <div className="flex items-center justify-between gap-2 border-t border-[var(--border-color)] bg-[var(--raised-bg)]/55 px-2 py-2">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             {/* ── + 按钮 ───────────────────────────── */}
             <input
               ref={fileInputRef}
@@ -249,32 +271,41 @@ export default function MessageInput() {
               </svg>
             </button>
             <span className="text-[10px] text-[var(--fg-subtle)]">
-              Enter 发送 · Shift+Enter 换行
+              {isStreaming ? 'Enter 发送 steer · Shift+Enter 换行' : 'Enter 发送 · Shift+Enter 换行'}
             </span>
           </div>
 
-          {isStreaming ? (
-            <button
-              onClick={handleAbort}
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--fg-color)] text-[var(--surface-bg)] transition-all duration-150 hover:opacity-90 active:scale-95"
-              title="中止生成"
-            >
-              <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
-                <rect x="6" y="6" width="12" height="12" rx="1.5" />
-              </svg>
-            </button>
-          ) : (
+          <div className="flex items-center gap-1.5">
+            {/* ── 队列状态 ─────────────────────────── */}
+            {queuedCount > 0 && (
+              <span className="text-[10px] text-[var(--fg-subtle)]">
+                {steeringQueue.length > 0 && `${steeringQueue.length} 个等待中`}
+                {followUpQueue.length > 0 && ` · ${followUpQueue.length} followUp`}
+              </span>
+            )}
+
+            {isStreaming && (
+              <button
+                onClick={handleAbort}
+                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-red-500/20 text-red-500 transition-all duration-150 hover:bg-red-500/30 active:scale-95"
+                title="中止生成"
+              >
+                <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="6" y="6" width="12" height="12" rx="1.5" />
+                </svg>
+              </button>
+            )}
             <button
               onClick={handleSend}
               disabled={!hasContent}
               className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--fg-color)] text-[var(--surface-bg)] transition-all duration-150 hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:bg-[var(--border-hover)] disabled:text-[var(--fg-subtle)] disabled:opacity-70"
-              title="发送 (Enter)"
+              title={isStreaming ? '发送 Steer (Enter)' : '发送 (Enter)'}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.25} d="M12 19V5m0 0l-6 6m6-6l6 6" />
               </svg>
             </button>
-          )}
+          </div>
         </div>
       </div>
     </div>
