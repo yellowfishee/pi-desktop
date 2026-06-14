@@ -346,6 +346,30 @@ export default function SettingsPanel() {
 
           {activeTab === 'advanced' && (
             <Section title="高级" description="调试和高级会话控制">
+              {/* ── 修复主题 ─────────────────────────── */}
+              <Field label="修复导出主题">
+                <div className="flex items-center gap-2">
+                  <p className="text-[11px] text-[var(--fg-muted)] leading-relaxed flex-1">
+                    如果导出 HTML 提示 &quot;Theme not found&quot;，点击下方按钮自动修复 pi 主题配置。
+                  </p>
+                </div>
+                <div className="flex gap-2 mt-1.5">
+                  <button
+                    onClick={async () => {
+                      try {
+                        await sendCommand({ type: 'bash', command: 'pi config set theme default' });
+                        useUIStore.getState().addToast({ level: 'info', message: '已设置 pi 主题为 default' });
+                      } catch (e) {
+                        useUIStore.getState().addToast({ level: 'error', message: `修复失败: ${e}` });
+                      }
+                    }}
+                    className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-all"
+                  >
+                    一键修复
+                  </button>
+                </div>
+              </Field>
+
               <Field label="Bash 命令">
                 <div className="flex gap-2">
                   <input
