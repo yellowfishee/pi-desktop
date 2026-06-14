@@ -68,7 +68,7 @@ export default function ChatInfoBar() {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-5 sm:px-7 lg:px-8 pb-2">
-      <div className="flex items-center gap-2 text-[10px] text-[var(--fg-subtle)] overflow-x-auto">
+      <div className="flex items-center gap-2 text-[10px] text-[var(--fg-subtle)] flex-wrap">
         {/* 会话名 */}
         {sessionName && (
           <span className="max-w-[120px] truncate font-medium text-[var(--fg-muted)]">
