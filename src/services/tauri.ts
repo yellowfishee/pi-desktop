@@ -224,7 +224,7 @@ export async function setupEventListeners() {
     } else if (data.method === 'setTitle') {
       // 窗口标题由 Tauri 管理，暂不处理
     } else if (data.method === 'set_editor_text') {
-      // 预填输入框，暂不处理
+      useUIStore.getState().setEditorPrefill((data as any).text || '');
     }
   });
 

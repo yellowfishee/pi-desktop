@@ -3,6 +3,7 @@ import type { UIMessage, ContentBlock } from '../../types/rpc';
 import MarkdownContent from './MarkdownContent';
 import ThinkingBlock from './ThinkingBlock';
 import ToolCard from './ToolCard';
+import ContextMenu, { MenuItem, MenuDivider } from '../shared/ContextMenu';
 import { IconPi, IconWarning, IconCompress, IconTerminal } from '../shared/Icons';
 
 interface Props {
@@ -33,6 +34,7 @@ export default memo(MessageBubble);
 
 function UserBubble({ message }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState('');
   const [editLoading, setEditLoading] = useState(false);
@@ -216,7 +218,36 @@ function UserBubble({ message }: Props) {
   };
 
   return (
-    <article className="group mb-7 flex flex-col items-end">
+    <article
+      className="group mb-7 flex flex-col items-end"
+      onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY }); }}
+    >
+      {/* 右键菜单 */}
+      {ctxMenu && (
+        <ContextMenu x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)}>
+          <MenuItem
+            onClick={() => { setCtxMenu(null); setIsEditing(true); setEditText(text); }}
+            icon={<svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>}
+            label="编辑"
+          />
+          <MenuItem
+            onClick={() => { setCtxMenu(null); handleFork(); }}
+            icon={<svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>}
+            label="从此处 Fork"
+          />
+          <MenuItem
+            onClick={async () => { setCtxMenu(null); await navigator.clipboard.writeText(text); }}
+            icon={<svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8 8h9a2 2 0 012 2v9a2 2 0 01-2 2h-9a2 2 0 01-2-2v-9a2 2 0 012-2zM5 16H4a2 2 0 01-2-2V5a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>}
+            label="复制文本"
+          />
+          <MenuDivider />
+          <MenuItem
+            onClick={() => { setCtxMenu(null); handleClone(); }}
+            icon={<svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>}
+            label="Clone 会话"
+          />
+        </ContextMenu>
+      )}
       {/* 操作菜单 */}
       <div className="relative mr-2 mb-1">
         <button
@@ -335,15 +366,17 @@ function UserBubble({ message }: Props) {
 
 function AssistantBubble({ message }: Props) {
   const [copied, setCopied] = useState(false);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const waitingForFirstBlock = !message.isComplete && message.content.length === 0;
 
+  const fullText = message.content
+    .filter((b) => b.type === 'text')
+    .map((b) => b.text || '')
+    .join('\n');
+
   const handleCopy = async () => {
-    const text = message.content
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text || '')
-      .join('\n');
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(fullText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -352,7 +385,48 @@ function AssistantBubble({ message }: Props) {
   };
 
   return (
-    <article className="mb-7 flex gap-3">
+    <article
+      className="mb-7 flex gap-3"
+      onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY }); }}
+    >
+      {/* 右键菜单 */}
+      {ctxMenu && (
+        <ContextMenu x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)}>
+          <MenuItem
+            onClick={() => { setCtxMenu(null); handleCopy(); }}
+            icon={<svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8 8h9a2 2 0 012 2v9a2 2 0 01-2 2h-9a2 2 0 01-2-2v-9a2 2 0 012-2zM5 16H4a2 2 0 01-2-2V5a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>}
+            label="复制回复"
+          />
+          <MenuItem
+            onClick={async () => { setCtxMenu(null); await navigator.clipboard.writeText(fullText); }}
+            icon={<svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M4 6h16M4 12h16M4 18h7"/></svg>}
+            label="复制为纯文本"
+          />
+          <MenuDivider />
+          <MenuItem
+            onClick={async () => {
+              setCtxMenu(null);
+              const { sendCommand } = await import('../../services/tauri');
+              const { useMessageStore } = await import('../../stores/messageStore');
+              const { useSessionStore } = await import('../../stores/sessionStore');
+              // 获取上一条用户消息文本作为 prompt
+              const msgs = useMessageStore.getState().messages;
+              const prevUser = [...msgs].reverse().find((m) => m.role === 'user');
+              const prompt = typeof prevUser?.rawContent === 'string' ? prevUser.rawContent : '';
+              if (prompt) {
+                useMessageStore.getState().addUserMessage(prompt);
+                useMessageStore.getState().ensureAssistantMessage();
+                useSessionStore.getState().setStreaming(true);
+                sendCommand({ type: 'prompt', message: prompt }).catch(() => {
+                  useSessionStore.getState().setStreaming(false);
+                });
+              }
+            }}
+            icon={<svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>}
+            label="重新生成"
+          />
+        </ContextMenu>
+      )}
       <div className="mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-[var(--border-color)] bg-[var(--surface-bg)] text-[var(--accent)]">
         <IconPi className="h-3.5 w-3.5" />
       </div>
@@ -388,6 +462,8 @@ function AssistantBubble({ message }: Props) {
             >
               {copied ? '已复制' : '复制'}
             </button>
+            <FeedbackBtn label="👍" onClick={() => {}} />
+            <FeedbackBtn label="👎" onClick={() => {}} />
           </div>
         )}
 
@@ -484,5 +560,25 @@ function BashBubble({ message }: Props) {
         )}
       </div>
     </article>
+  );
+}
+
+function FeedbackBtn({ label, onClick }: { label: string; onClick: () => void }) {
+  const [active, setActive] = useState(false);
+  const handleClick = () => {
+    setActive(true);
+    onClick();
+    setTimeout(() => setActive(false), 600);
+  };
+  return (
+    <button
+      onClick={handleClick}
+      className={`rounded-md px-1.5 py-0.5 text-xs transition-all ${
+        active ? 'scale-125' : ''
+      } hover:bg-[var(--hover-bg)]`}
+      title={label === '👍' ? '有帮助' : '需要改进'}
+    >
+      {label}
+    </button>
   );
 }

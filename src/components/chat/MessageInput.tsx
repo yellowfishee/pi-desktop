@@ -1,9 +1,10 @@
-import { useState, useRef, useCallback, KeyboardEvent, DragEvent, ChangeEvent, ClipboardEvent } from 'react';
+import { useState, useRef, useCallback, useEffect, KeyboardEvent, DragEvent, ChangeEvent, ClipboardEvent } from 'react';
 import { useSessionStore } from '../../stores/sessionStore';
 import { useMessageStore } from '../../stores/messageStore';
 import { useUIStore } from '../../stores/uiStore';
 import { sendCommand } from '../../services/tauri';
 import { invoke } from '@tauri-apps/api/core';
+import SlashMenu from './SlashMenu';
 import type { ImageContent } from '../../types/rpc';
 
 // ============================================================
@@ -35,9 +36,23 @@ export default function MessageInput() {
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState<ImageContent[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [slashMenuOpen, setSlashMenuOpen] = useState(false);
+  const [slashQuery, setSlashQuery] = useState('');
   const isStreaming = useSessionStore((s) => s.isStreaming);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── set_editor_text 扩展预填 ─────────────────────
+  useEffect(() => {
+    const unsub = useUIStore.subscribe((state, prev) => {
+      if (state.editorPrefill && state.editorPrefill !== prev.editorPrefill) {
+        setText(state.editorPrefill);
+        useUIStore.getState().setEditorPrefill(null);
+        textareaRef.current?.focus();
+      }
+    });
+    return unsub;
+  }, []);
 
   // ── 文件选择 ──────────────────────────────────────
   const handleFileSelect = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
@@ -172,6 +187,26 @@ export default function MessageInput() {
     }
   }, [text, isStreaming, attachments]);
 
+  // ── 格式插入 ──────────────────────────────────
+  const insertFormat = useCallback((prefix: string, suffix: string) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart || 0;
+    const end = el.selectionEnd || 0;
+    const selected = text.slice(start, end);
+    const newText = text.slice(0, start) + prefix + selected + suffix + text.slice(end);
+    setText(newText);
+    setTimeout(() => {
+      el.focus();
+      if (selected) {
+        el.setSelectionRange(start + prefix.length, end + prefix.length);
+      } else {
+        const pos = start + prefix.length;
+        el.setSelectionRange(pos, pos);
+      }
+    }, 0);
+  }, [text]);
+
   const handleAbort = useCallback(async () => {
     // 乐观更新：立即停止流式状态
     useSessionStore.getState().setStreaming(false);
@@ -194,8 +229,50 @@ export default function MessageInput() {
   const handleInput = useCallback(() => {
     const el = textareaRef.current;
     if (el) {
+      // 检测斜杠命令
+      const text = el.value;
+      const cursorPos = el.selectionStart || 0;
+      // 找光标前的最后一个 /
+      const lastSlashPos = text.lastIndexOf('/', cursorPos - 1);
+      // 只有 / 在行首或空格后时触发
+      const charBefore = lastSlashPos > 0 ? text[lastSlashPos - 1] : '\n';
+      const isValidSlash = lastSlashPos >= 0 && (lastSlashPos === 0 || charBefore === ' ' || charBefore === '\n');
+      if (isValidSlash) {
+        const afterSlash = text.slice(lastSlashPos + 1, cursorPos);
+        // 不含空格时才显示菜单（参数还没开始输入）
+        if (!afterSlash.includes(' ')) {
+          setSlashQuery(afterSlash);
+          setSlashMenuOpen(true);
+        } else {
+          setSlashMenuOpen(false);
+        }
+      } else {
+        setSlashMenuOpen(false);
+      }
+
       el.style.height = 'auto';
       el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+    }
+  }, []);
+
+  const handleSlashSelect = useCallback((cmd: string) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const text = el.value;
+    const cursorPos = el.selectionStart || 0;
+    const lastSlashPos = text.lastIndexOf('/', cursorPos - 1);
+    if (lastSlashPos >= 0) {
+      // 替换 /xxx 为命令 + 空格
+      const before = text.slice(0, lastSlashPos);
+      const after = text.slice(cursorPos);
+      const newText = before + cmd + ' ' + after;
+      setText(newText);
+      setSlashMenuOpen(false);
+      setTimeout(() => {
+        el.focus();
+        const newPos = before.length + cmd.length + 1;
+        el.setSelectionRange(newPos, newPos);
+      }, 0);
     }
   }, []);
 
@@ -206,6 +283,13 @@ export default function MessageInput() {
 
   return (
     <div className="pb-4 pt-1" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+      <SlashMenu
+        visible={slashMenuOpen}
+        query={slashQuery}
+        onSelect={handleSlashSelect}
+        onClose={() => setSlashMenuOpen(false)}
+        textareaRef={textareaRef}
+      />
       <div
         className={`overflow-hidden rounded-xl border transition focus-within:border-[var(--border-hover)] shadow-[0_10px_32px_rgb(0_0_0/0.08)] dark:shadow-[0_12px_36px_rgb(0_0_0/0.35)] ${
           isDragOver
@@ -236,6 +320,22 @@ export default function MessageInput() {
             ))}
           </div>
         )}
+
+        {/* ── 格式工具栏 ─────────────────────────────── */}
+        <div className="flex items-center gap-0.5 px-3 pt-2">
+          <FormatBtn title="加粗 (Cmd+B)" onClick={() => insertFormat('**', '**')}>
+            <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"/></svg>
+          </FormatBtn>
+          <FormatBtn title="斜体 (Cmd+I)" onClick={() => insertFormat('*', '*')}>
+            <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/></svg>
+          </FormatBtn>
+          <FormatBtn title="行内代码 (Cmd+E)" onClick={() => insertFormat('`', '`')}>
+            <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+          </FormatBtn>
+          <FormatBtn title="引用" onClick={() => insertFormat('> ', '')}>
+            <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/></svg>
+          </FormatBtn>
+        </div>
 
         <textarea
           ref={textareaRef}
@@ -309,5 +409,17 @@ export default function MessageInput() {
         </div>
       </div>
     </div>
+  );
+}
+
+function FormatBtn({ title, onClick, children }: { title: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex h-6 w-6 items-center justify-center rounded text-[var(--fg-subtle)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)] transition-colors"
+      title={title}
+    >
+      {children}
+    </button>
   );
 }
