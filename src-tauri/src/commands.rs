@@ -176,32 +176,38 @@ pub async fn rename_session_file(
             .as_nanos()
     );
 
+    eprintln!("[rename_session_file] session_path: {}, name: {}, pinned: {:?}", session_path, name, pinned);
+
     for line in &mut lines {
         if let Ok(mut val) = serde_json::from_str::<Value>(line) {
             if val.get("type").and_then(|t| t.as_str()) == Some("session_info") {
+                eprintln!("[rename_session_file] found session_info, current: {:?}", val);
                 if !name.is_empty() {
                     val["name"] = Value::String(name.clone());
                 }
                 if let Some(p) = pinned {
                     val["pinned"] = Value::Bool(p);
+                    eprintln!("[rename_session_file] setting pinned to {}", p);
                 }
                 *line = serde_json::to_string(&val).unwrap_or_else(|_| line.clone());
                 found = true;
+                eprintln!("[rename_session_file] updated line: {}", line);
                 break;
             }
         }
     }
 
-    if !found && !name.is_empty() {
+    if !found {
         let entry = serde_json::json!({
             "type": "session_info",
             "id": new_id,
             "parentId": null,
             "timestamp": now,
-            "name": name,
+            "name": if name.is_empty() { "未命名会话" } else { &name },
             "pinned": pinned.unwrap_or(false),
         });
         lines.push(serde_json::to_string(&entry).unwrap_or_default());
+        eprintln!("[rename_session_file] created new session_info entry");
     }
 
     std::fs::write(&session_path, lines.join("\n") + "\n")

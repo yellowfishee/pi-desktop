@@ -273,6 +273,9 @@ export default function Sidebar() {
     // 持久化到文件（通过重命名命令，将 pinned 信息写入 session_info）
     try {
       await renameSessionFile(filePath, session.session_name || '', newPinned);
+      // 重新加载会话列表以确保数据同步
+      const updated = await listSessions();
+      useSessionStore.getState().setSessions(updated);
     } catch (e) {
       console.error('Failed to toggle pin:', e);
       // 回滚
