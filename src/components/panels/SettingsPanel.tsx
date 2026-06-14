@@ -464,7 +464,7 @@ export default function SettingsPanel() {
                 <Shortcut keys="⌘/Ctrl + Shift + T" label="循环切换思考深度" />
                 <Shortcut keys="⌘/Ctrl + Shift + ↑" label="跳转到上一条提问" />
                 <Shortcut keys="⌘/Ctrl + Shift + ↓" label="跳转到下一条提问" />
-                <Shortcut keys="⌘/Ctrl + K" label="打开设置面板" />
+                <Shortcut keys="⌘/Ctrl + P" label="打开命令面板" />
               </div>
             </Section>
           )}

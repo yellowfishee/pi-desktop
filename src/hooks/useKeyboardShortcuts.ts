@@ -57,11 +57,7 @@ export function useKeyboardShortcuts() {
       useSessionStore.getState().updateState({ thinkingLevel: next });
     }
 
-    // Cmd/Ctrl + K: 打开设置面板
-    if (mod && e.key === 'k') {
-      e.preventDefault();
-      useUIStore.getState().setSettingsOpen(true);
-    }
+    // Cmd/Ctrl + P: 命令面板（由 CommandPalette 组件处理，不在此拦截）
 
     // Cmd/Ctrl + Shift + ↑: 跳转到上一条用户消息
     if (mod && e.shiftKey && e.key === 'ArrowUp') {
