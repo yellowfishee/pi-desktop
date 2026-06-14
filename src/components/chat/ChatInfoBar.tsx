@@ -100,7 +100,7 @@ export default function ChatInfoBar() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setModelMenuOpen(false)} />
                 <div
-                  className="fixed z-50 min-w-[200px] overflow-hidden rounded-lg border border-[var(--border-color)] bg-[var(--surface-bg)] shadow-xl"
+                  className="fixed z-50 min-w-[200px] max-h-[320px] overflow-y-auto rounded-lg border border-[var(--border-color)] bg-[var(--surface-bg)] shadow-xl"
                   style={{
                     left: (modelBtnRef.current?.getBoundingClientRect().left ?? 0) + 'px',
                     top: (modelBtnRef.current?.getBoundingClientRect().bottom ?? 0) + 4 + 'px',
@@ -152,7 +152,7 @@ export default function ChatInfoBar() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setThinkingMenuOpen(false)} />
                 <div
-                  className="fixed z-50 min-w-[120px] overflow-hidden rounded-lg border border-[var(--border-color)] bg-[var(--surface-bg)] shadow-xl"
+                  className="fixed z-50 min-w-[120px] max-h-[320px] overflow-y-auto rounded-lg border border-[var(--border-color)] bg-[var(--surface-bg)] shadow-xl"
                   style={{
                     left: (thinkingBtnRef.current?.getBoundingClientRect().left ?? 0) + 'px',
                     top: (thinkingBtnRef.current?.getBoundingClientRect().bottom ?? 0) + 4 + 'px',
