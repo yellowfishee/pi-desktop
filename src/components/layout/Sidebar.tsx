@@ -381,19 +381,19 @@ export default function Sidebar() {
           </button>
           <button
             onClick={() => {
-              const allExpanded = Object.values(expandedProjects).every(Boolean) && projects.length > 0;
+              const allExpanded = projects.length > 0 && projects.every((p) => expandedProjects[p.dir_name] !== false);
               if (allExpanded) {
-                setExpandedProjects({});
+                const collapse: Record<string, boolean> = {};
+                projects.forEach((p) => { collapse[p.dir_name] = false; });
+                setExpandedProjects(collapse);
               } else {
-                const expand: Record<string, boolean> = {};
-                projects.forEach((p) => { expand[p.dir_name] = true; });
-                setExpandedProjects(expand);
+                setExpandedProjects({});
               }
             }}
             className="sidebar-icon-btn ml-auto"
-            title={Object.values(expandedProjects).every(Boolean) ? '收起全部' : '展开全部'}
+            title={projects.length > 0 && projects.every((p) => expandedProjects[p.dir_name] !== false) ? '收起全部' : '展开全部'}
           >
-            <FoldAllIcon collapsed={Object.values(expandedProjects).every(Boolean)} className="w-3.5 h-3.5" />
+            <FoldAllIcon collapsed={projects.length > 0 && projects.every((p) => expandedProjects[p.dir_name] !== false)} className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
