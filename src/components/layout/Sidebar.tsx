@@ -518,8 +518,8 @@ function ProjectTree({
   const { project, sessions } = item;
 
   // 分离置顶和未置顶会话
-  const pinnedSessions = sessions.filter((s) => s.pinned);
-  const unpinnedSessions = sessions.filter((s) => !s.pinned);
+  const pinnedSessions = sessions.filter((s) => s.pinned === true);
+  const unpinnedSessions = sessions.filter((s) => s.pinned !== true);
 
   // 按时间分组未置顶会话
   const now = new Date();
@@ -654,10 +654,10 @@ function SessionRow({
             e.stopPropagation();
             onTogglePin();
           }}
-          className={`sidebar-inline-action ${session.pinned ? 'sidebar-pinned' : ''}`}
-          title={session.pinned ? '取消置顶' : '置顶'}
+          className={`sidebar-inline-action ${session.pinned === true ? 'sidebar-pinned' : ''}`}
+          title={session.pinned === true ? '取消置顶' : '置顶'}
         >
-          <PinIcon pinned={session.pinned} />
+          <PinIcon pinned={session.pinned === true} />
         </button>
       )}
       <button
