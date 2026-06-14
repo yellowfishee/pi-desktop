@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useSessionStore } from '../../stores/sessionStore';
 import { sendCommand, listGitChanges } from '../../services/tauri';
 
@@ -18,6 +19,8 @@ export default function ChatInfoBar() {
   const [changedFiles, setChangedFiles] = useState(0);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [thinkingMenuOpen, setThinkingMenuOpen] = useState(false);
+  const modelBtnRef = useRef<HTMLButtonElement>(null);
+  const thinkingBtnRef = useRef<HTMLButtonElement>(null);
 
   // 流式时每 2 秒刷新 Token 统计
   useEffect(() => {
@@ -68,7 +71,7 @@ export default function ChatInfoBar() {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-5 sm:px-7 lg:px-8 pb-2">
-      <div className="flex items-center gap-2 text-[10px] text-[var(--fg-subtle)] flex-wrap">
+      <div className="flex items-center gap-2 text-[10px] text-[var(--fg-subtle)] overflow-x-auto">
         {/* 会话名 */}
         {sessionName && (
           <span className="max-w-[120px] truncate font-medium text-[var(--fg-muted)]">
@@ -80,8 +83,9 @@ export default function ChatInfoBar() {
         <span className="opacity-30">|</span>
 
         {/* 模型 — 点击弹出列表 */}
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <button
+            ref={modelBtnRef}
             onClick={handleCycleModel}
             className="rounded px-1.5 py-0.5 text-[10px] bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)]/20 transition-colors whitespace-nowrap"
             title="点击选择模型"
@@ -91,40 +95,49 @@ export default function ChatInfoBar() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
-          {modelMenuOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setModelMenuOpen(false)} />
-              <div className="absolute left-0 top-full z-50 mt-1 min-w-[200px] overflow-hidden rounded-lg border border-[var(--border-color)] bg-[var(--surface-bg)] shadow-xl">
-                {availableModels.map((m) => {
-                  const isActive = model && m.provider === model.provider && m.id === model.id;
-                  return (
-                    <button
-                      key={`${m.provider}:${m.id}`}
-                      onClick={() => handleSelectModel(m.provider, m.id)}
-                      className={`flex w-full items-center gap-2 px-3 py-2 text-xs transition-colors ${
-                        isActive
-                          ? 'bg-[var(--accent)]/10 text-[var(--accent)] font-medium'
-                          : 'text-[var(--fg-color)] hover:bg-[var(--hover-bg)]'
-                      }`}
-                    >
-                      <span className="flex-1 text-left">{m.name}</span>
-                      <span className="text-[10px] opacity-50">{m.provider}</span>
-                      {isActive && (
-                        <svg className="h-3 w-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                        </svg>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
+          {modelMenuOpen &&
+            createPortal(
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setModelMenuOpen(false)} />
+                <div
+                  className="fixed z-50 min-w-[200px] overflow-hidden rounded-lg border border-[var(--border-color)] bg-[var(--surface-bg)] shadow-xl"
+                  style={{
+                    left: (modelBtnRef.current?.getBoundingClientRect().left ?? 0) + 'px',
+                    top: (modelBtnRef.current?.getBoundingClientRect().bottom ?? 0) + 4 + 'px',
+                  }}
+                >
+                  {availableModels.map((m) => {
+                    const isActive = model && m.provider === model.provider && m.id === model.id;
+                    return (
+                      <button
+                        key={`${m.provider}:${m.id}`}
+                        onClick={() => handleSelectModel(m.provider, m.id)}
+                        className={`flex w-full items-center gap-2 px-3 py-2 text-xs transition-colors ${
+                          isActive
+                            ? 'bg-[var(--accent)]/10 text-[var(--accent)] font-medium'
+                            : 'text-[var(--fg-color)] hover:bg-[var(--hover-bg)]'
+                        }`}
+                      >
+                        <span className="flex-1 text-left">{m.name}</span>
+                        <span className="text-[10px] opacity-50">{m.provider}</span>
+                        {isActive && (
+                          <svg className="h-3 w-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>,
+              document.body
+            )}
         </div>
 
         {/* 思考深度 — 点击弹出列表 */}
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <button
+            ref={thinkingBtnRef}
             onClick={handleCycleThinking}
             className="rounded px-1.5 py-0.5 text-[10px] bg-[var(--raised-bg)] text-[var(--fg-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)] transition-colors whitespace-nowrap"
             title="点击选择思考深度"
@@ -134,34 +147,42 @@ export default function ChatInfoBar() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
-          {thinkingMenuOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setThinkingMenuOpen(false)} />
-              <div className="absolute left-0 top-full z-50 mt-1 min-w-[120px] overflow-hidden rounded-lg border border-[var(--border-color)] bg-[var(--surface-bg)] shadow-xl">
-                {THINKING_LEVELS.map((level) => {
-                  const isActive = thinkingLevel === level;
-                  return (
-                    <button
-                      key={level}
-                      onClick={() => handleSelectThinking(level)}
-                      className={`flex w-full items-center gap-2 px-3 py-1.5 text-xs transition-colors ${
-                        isActive
-                          ? 'bg-[var(--accent)]/10 text-[var(--accent)] font-medium'
-                          : 'text-[var(--fg-color)] hover:bg-[var(--hover-bg)]'
-                      }`}
-                    >
-                      <span>{level}</span>
-                      {isActive && (
-                        <svg className="h-3 w-3 flex-shrink-0 ml-auto" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                        </svg>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
+          {thinkingMenuOpen &&
+            createPortal(
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setThinkingMenuOpen(false)} />
+                <div
+                  className="fixed z-50 min-w-[120px] overflow-hidden rounded-lg border border-[var(--border-color)] bg-[var(--surface-bg)] shadow-xl"
+                  style={{
+                    left: (thinkingBtnRef.current?.getBoundingClientRect().left ?? 0) + 'px',
+                    top: (thinkingBtnRef.current?.getBoundingClientRect().bottom ?? 0) + 4 + 'px',
+                  }}
+                >
+                  {THINKING_LEVELS.map((level) => {
+                    const isActive = thinkingLevel === level;
+                    return (
+                      <button
+                        key={level}
+                        onClick={() => handleSelectThinking(level)}
+                        className={`flex w-full items-center gap-2 px-3 py-1.5 text-xs transition-colors ${
+                          isActive
+                            ? 'bg-[var(--accent)]/10 text-[var(--accent)] font-medium'
+                            : 'text-[var(--fg-color)] hover:bg-[var(--hover-bg)]'
+                        }`}
+                      >
+                        <span>{level}</span>
+                        {isActive && (
+                          <svg className="h-3 w-3 flex-shrink-0 ml-auto" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>,
+              document.body
+            )}
         </div>
 
         {/* 分隔 */}
