@@ -79,6 +79,8 @@ interface UIStoreState {
   setActiveDiff: (diff: FileDiff | null) => void;
   setQueues: (steering: string[], followUp: string[]) => void;
   triggerJumpToUserMessage: (direction: 'prev' | 'next') => void;
+  setEditorPrefill: (text: string | null) => void;
+  editorPrefill: string | null;
 }
 
 export const useUIStore = create<UIStoreState>((set, get) => ({
@@ -198,6 +200,9 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
 
   triggerJumpToUserMessage: (direction) =>
     set((s) => ({ jumpToUserMessage: s.jumpToUserMessage + 1, jumpDirection: direction })),
+
+  editorPrefill: null,
+  setEditorPrefill: (text) => set({ editorPrefill: text }),
 }));
 
 function applyTheme(theme: 'light' | 'dark' | 'system') {
