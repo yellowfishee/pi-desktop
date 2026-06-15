@@ -33,6 +33,7 @@ type ProjectTreeItem = {
 
 export default function Sidebar() {
   const projects = useSessionStore((s) => s.projects);
+  const activeProject = useSessionStore((s) => s.activeProject);
   const activeProjectDir = useSessionStore((s) => s.activeProjectDir);
   const activeSessionFile = useSessionStore((s) => s.activeSessionFile);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
@@ -144,9 +145,13 @@ export default function Sidebar() {
   const handleToggleProject = (dirName: string, projectName: string) => {
     const isActive = useSessionStore.getState().activeProjectDir === dirName;
     if (!isActive) {
+      // 切换到新 workspace：设为 active 并清空当前 session 视图
       useSessionStore.getState().setActiveProject(projectName, dirName);
+      useMessageStore.getState().clearMessages();
+      useSessionStore.getState().setActiveSession('', '');
       setExpandedProjects((current) => ({ ...current, [dirName]: true }));
     } else {
+      // 点击同一个项目：仅切换展开/折叠
       setExpandedProjects((current) => ({
         ...current,
         [dirName]: !(current[dirName] ?? true),
@@ -460,7 +465,14 @@ export default function Sidebar() {
       {/* Footer */}
       <div className="sidebar-footer">
         <div className="sidebar-stats">
-          {projects.length} 个项目 · {totalSessions} 个会话
+          {activeProject ? (
+            <>
+              <span className="font-medium text-[var(--fg-color)]">{activeProject}</span>
+              <span>{activeProjectDir ? projects.find(p => p.dir_name === activeProjectDir)?.sessions.length || 0 : 0} 个会话</span>
+            </>
+          ) : (
+            <>{projects.length} 个项目 · {totalSessions} 个会话</>
+          )}
         </div>
         <div className="sidebar-footer-actions">
           <SidebarFooterButton onClick={() => invoke('open_new_window').catch(console.error)} icon={<NewWindowIcon className="w-3.5 h-3.5" />} label="新窗口" />

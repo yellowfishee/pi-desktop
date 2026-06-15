@@ -13,6 +13,8 @@ export default function ChatPanel() {
   const messages = useMessageStore((s) => s.messages);
   const isStreaming = useSessionStore((s) => s.isStreaming);
   const sessionLoading = useSessionStore((s) => s.sessionLoading);
+  const activeSessionFile = useSessionStore((s) => s.activeSessionFile);
+  const activeProject = useSessionStore((s) => s.activeProject);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const toggleProperties = useUIStore((s) => s.toggleProperties);
@@ -147,7 +149,14 @@ export default function ChatPanel() {
           <div className="flex h-full items-center justify-center text-sm text-[var(--fg-subtle)]">
             <div className="text-center">
               <IconPi className="mx-auto mb-3 h-14 w-14 text-[var(--accent)] opacity-35" />
-              <p className="text-[var(--fg-subtle)]">开始一段新的对话</p>
+              {activeProject && !activeSessionFile ? (
+                <>
+                  <p className="text-[var(--fg-color)] font-medium">{activeProject}</p>
+                  <p className="mt-1 text-[var(--fg-subtle)]">在侧边栏选择一个对话，或新建一个对话</p>
+                </>
+              ) : (
+                <p className="text-[var(--fg-subtle)]">开始一段新的对话</p>
+              )}
             </div>
           </div>
         ) : (
@@ -222,7 +231,7 @@ function ExtensionStatusBar() {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-5 sm:px-7 lg:px-8">
-      <div className="py-1 text-xxs text-gray-400/60 dark:text-gray-500/60 flex items-center gap-3 flex-wrap min-h-[22px]">
+      <div className="py-1 text-xxs text-[var(--fg-subtle)] flex items-center gap-3 flex-wrap min-h-[22px]">
         {entries.map(([key, text]) => (
           <span key={key} className="opacity-60">
             {text.replace(/\u001b\[[0-9;]*m/g, '')}
