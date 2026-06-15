@@ -97,7 +97,7 @@ export default function SessionTree() {
         >
           {/* 缩进线 */}
           {node.depth > 0 && (
-            <span className="flex-shrink-0 w-3 text-[var(--fg-subtle)] text-[10px]">
+            <span className="flex-shrink-0 w-3 text-[var(--fg-subtle)] text-xxs">
               └
             </span>
           )}
@@ -119,7 +119,7 @@ export default function SessionTree() {
 
   if (tree.length === 0) {
     return (
-      <div className="p-3 text-[10px] text-[var(--fg-subtle)]">
+      <div className="p-3 text-xxs text-[var(--fg-subtle)]">
         暂无分支会话
       </div>
     );

@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import {common} from 'lowlight'; // 只使用常用语言子集（约 37 种），而非全部 190+ 种
 
 interface Props {
   text: string;
@@ -16,7 +17,7 @@ function MarkdownContent({ text, isStreaming }: Props) {
     <div className="overflow-x-auto break-words">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
+        rehypePlugins={[[rehypeHighlight, {languages: common}]]}
         components={{
           pre: ({ children }) => {
             const codeText = extractText(children);
@@ -25,7 +26,7 @@ function MarkdownContent({ text, isStreaming }: Props) {
               <div className="group relative my-2 overflow-hidden rounded-md border border-[var(--border-color)]">
                 {lang && (
                   <div className="flex items-center justify-between px-3 py-1 bg-[var(--raised-bg)] border-b border-[var(--border-color)]">
-                    <span className="text-[10px] text-[var(--fg-subtle)] uppercase tracking-wide">{lang}</span>
+                    <span className="text-xxs text-[var(--fg-subtle)] uppercase tracking-wide">{lang}</span>
                     <CodeCopy text={codeText} />
                   </div>
                 )}
@@ -44,7 +45,7 @@ function MarkdownContent({ text, isStreaming }: Props) {
             const isInline = !className;
             if (isInline) {
               return (
-                <code className="rounded bg-[var(--raised-bg)] px-1 py-0.5 text-[12px] font-mono text-[var(--accent)]" {...props}>
+                <code className="rounded bg-[var(--raised-bg)] px-1 py-0.5 text-xxs font-mono text-[var(--accent)]" {...props}>
                   {children}
                 </code>
               );
@@ -104,7 +105,7 @@ function CodeCopy({ text }: { text: string }) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }}
-      className="text-[10px] text-[var(--fg-subtle)] hover:text-[var(--fg-color)] opacity-0 group-hover:opacity-100 transition-opacity"
+      className="text-xxs text-[var(--fg-subtle)] hover:text-[var(--fg-color)] opacity-0 group-hover:opacity-100 transition-opacity"
     >
       {copied ? '已复制' : '复制'}
     </button>

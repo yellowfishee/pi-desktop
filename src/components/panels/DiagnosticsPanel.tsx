@@ -85,7 +85,7 @@ export default function DiagnosticsPanel() {
       {diag && diag.crash_count > 0 && (
         <div className="rounded-md border border-red-500/20 bg-red-500/5 p-3">
           <div className="text-xs font-medium text-red-500 mb-1">最近一次崩溃</div>
-          <div className="text-[10px] text-[var(--fg-muted)] leading-relaxed space-y-0.5">
+          <div className="text-xxs text-[var(--fg-muted)] leading-relaxed space-y-0.5">
             {diag.last_crash_time && (
               <div>时间: {new Date(diag.last_crash_time).toLocaleString()}</div>
             )}
@@ -111,7 +111,7 @@ export default function DiagnosticsPanel() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-[var(--border-color)] px-3 py-2">
-      <div className="text-[10px] text-[var(--fg-subtle)]">{label}</div>
+      <div className="text-xxs text-[var(--fg-subtle)]">{label}</div>
       <div className="text-sm font-mono text-[var(--fg-color)]">{value}</div>
     </div>
   );

@@ -51,7 +51,7 @@ export default function CommitDialog({ open, files, stagedFiles, selectedFiles, 
             <div className="text-sm font-semibold text-[var(--fg-color)]">
               {hasSelection ? '提交选中的文件' : '提交暂存的更改'}
             </div>
-            <div className="text-[10px] text-[var(--fg-subtle)] mt-0.5">
+            <div className="text-xxs text-[var(--fg-subtle)] mt-0.5">
               {commitFiles.length} 个文件
             </div>
           </div>
@@ -67,7 +67,7 @@ export default function CommitDialog({ open, files, stagedFiles, selectedFiles, 
 
         {/* Message Input */}
         <div className="px-4 pt-3">
-          <label className="text-[10px] font-medium uppercase tracking-wide text-[var(--fg-subtle)]">
+          <label className="text-xxs font-medium uppercase tracking-wide text-[var(--fg-subtle)]">
             提交信息
           </label>
           <textarea
@@ -81,7 +81,7 @@ export default function CommitDialog({ open, files, stagedFiles, selectedFiles, 
 
         {/* File List */}
         <div className="px-4 pt-2 pb-1">
-          <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-[var(--fg-subtle)]">
+          <div className="mb-1.5 text-xxs font-medium uppercase tracking-wide text-[var(--fg-subtle)]">
             将提交的文件
           </div>
           <div className="max-h-40 overflow-y-auto rounded-md border border-[var(--border-color)] bg-[var(--panel-bg)]">
@@ -93,7 +93,7 @@ export default function CommitDialog({ open, files, stagedFiles, selectedFiles, 
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-[var(--border-color)] bg-[var(--raised-bg)] px-4 py-3 mt-2">
-          <span className="text-[10px] text-[var(--fg-subtle)]">
+          <span className="text-xxs text-[var(--fg-subtle)]">
             ← Enter 提交 · Esc 取消
           </span>
           <button
@@ -119,8 +119,8 @@ function FileRow({ file }: { file: GitChangeFile }) {
   return (
     <div className="flex items-center gap-2 border-b border-[var(--border-color)] px-3 py-1.5 last:border-b-0">
       <StatusDot status={file.status} />
-      <span className="flex-1 truncate font-mono text-[11px] text-[var(--fg-color)]">{file.path}</span>
-      <span className="flex-shrink-0 flex items-center gap-1 text-[10px] font-mono">
+      <span className="flex-1 truncate font-mono text-xxs text-[var(--fg-color)]">{file.path}</span>
+      <span className="flex-shrink-0 flex items-center gap-1 text-xxs font-mono">
         {file.additions > 0 && <span className="text-green-600 dark:text-green-400">+{file.additions}</span>}
         {file.deletions > 0 && <span className="text-red-500 dark:text-red-400">-{file.deletions}</span>}
       </span>

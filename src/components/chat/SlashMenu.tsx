@@ -145,13 +145,13 @@ const SlashMenu = forwardRef<SlashMenuHandle, Props>(
               }`}
             >
               <span className="text-xs font-mono font-medium">{cmd.name}</span>
-              <span className={`flex-1 text-[10px] ${i === selectedIndex ? 'opacity-70' : 'opacity-50'}`}>
+              <span className={`flex-1 text-xxs ${i === selectedIndex ? 'opacity-70' : 'opacity-50'}`}>
                 {cmd.description}
               </span>
             </button>
           ))}
         </div>
-        <div className="border-t border-[var(--border-color)] bg-[var(--raised-bg)]/55 px-3 py-1.5 text-[10px] text-[var(--fg-subtle)]">
+        <div className="border-t border-[var(--border-color)] bg-[var(--raised-bg)]/55 px-3 py-1.5 text-xxs text-[var(--fg-subtle)]">
           ↑↓ 选择 · Enter 确认 · Esc 关闭
         </div>
       </div>

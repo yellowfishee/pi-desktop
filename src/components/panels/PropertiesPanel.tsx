@@ -51,7 +51,7 @@ export default function PropertiesPanel() {
         {Object.keys(extensionStatuses).length > 0 && (
           <div className="mt-2 space-y-1">
             {Object.entries(extensionStatuses).slice(0, 3).map(([key, text]) => (
-              <div key={key} className="truncate font-mono text-[10px] text-gray-400">
+              <div key={key} className="truncate font-mono text-xxs text-gray-400">
                 {stripAnsi(text)}
               </div>
             ))}
@@ -79,7 +79,7 @@ export default function PropertiesPanel() {
           <InfoRow label="Tool calls" value={stats?.toolCalls ?? review.toolCalls} />
           {contextPercent !== null && (
             <div>
-              <div className="mb-1 flex justify-between text-[10px] text-gray-500">
+              <div className="mb-1 flex justify-between text-xxs text-gray-500">
                 <span>Context</span>
                 <span>{Math.round(contextPercent)}%</span>
               </div>
@@ -116,7 +116,7 @@ function PanelSection({ title, action, children }: { title: string; action?: Rea
   return (
     <section className="border-b border-gray-200/70 px-3 py-3 dark:border-gray-800">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{title}</div>
+        <div className="text-xxs font-semibold uppercase tracking-wide text-gray-400">{title}</div>
         {action}
       </div>
       {children}
@@ -128,11 +128,11 @@ function CheckRow({ check }: { check: CheckRun }) {
   return (
     <div className="rounded-md border border-gray-200/80 bg-white/60 px-2 py-1.5 dark:border-gray-800 dark:bg-gray-900/40">
       <div className="flex items-center justify-between gap-2">
-        <span className="truncate font-mono text-[11px] text-gray-700 dark:text-gray-300">{check.command}</span>
+        <span className="truncate font-mono text-xxs text-gray-700 dark:text-gray-300">{check.command}</span>
         <span className={check.isError ? 'text-red-500' : 'text-green-600'}>{check.isError ? 'Failed' : 'Passed'}</span>
       </div>
       {check.output && (
-        <div className="mt-1 line-clamp-2 whitespace-pre-wrap font-mono text-[10px] leading-snug text-gray-400">
+        <div className="mt-1 line-clamp-2 whitespace-pre-wrap font-mono text-xxs leading-snug text-gray-400">
           {check.output}
         </div>
       )}
@@ -151,7 +151,7 @@ function InfoRow({ label, value, strong = false }: { label: string; value: React
 
 function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-md border border-dashed border-gray-200/80 px-2 py-2 text-[11px] text-gray-400 dark:border-gray-800">
+    <div className="rounded-md border border-dashed border-gray-200/80 px-2 py-2 text-xxs text-gray-400 dark:border-gray-800">
       {children}
     </div>
   );
@@ -214,7 +214,7 @@ function statusClass(isStreaming: boolean, isCompacting: boolean) {
     : isStreaming
       ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
       : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400';
-  return `rounded-full px-2 py-0.5 text-[10px] font-medium ${tone}`;
+  return `rounded-full px-2 py-0.5 text-xxs font-medium ${tone}`;
 }
 
 function CloseIcon({ className = 'w-3 h-3' }: { className?: string }) {

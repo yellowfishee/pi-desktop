@@ -179,7 +179,7 @@ export default function ChatPanel() {
 
       {/* "回到底部" 浮动按钮 */}
       {showScrollButton && (
-        <div className="absolute bottom-[110px] left-1/2 -translate-x-1/2 z-20 animate-slide-up">
+        <div className="absolute bottom-[120px] left-1/2 -translate-x-1/2 z-20 animate-slide-up">
           <button
             onClick={scrollToBottom}
             className="flex items-center gap-1.5 rounded-full border border-[var(--border-color)] bg-[var(--surface-bg)] px-3 py-1.5 text-xs text-[var(--fg-muted)] shadow-md hover:border-[var(--border-hover)] hover:text-[var(--fg-color)] transition-all"
@@ -192,23 +192,22 @@ export default function ChatPanel() {
         </div>
       )}
 
-      {/* 信息栏 — 消息区与输入框之间 */}
-      <div className="flex-shrink-0">
+      {/* 底部区域：ChatInfoBar + 输入框 + StatusBar */}
+      <div className="flex-shrink-0 bg-[var(--panel-bg)]">
+        {/* 信息栏 */}
         <ChatInfoBar />
-      </div>
 
-      {/* 输入区域 — 带渐变遮罩分隔 */}
-      <div className="relative flex-shrink-0">
-        <div className="pointer-events-none absolute inset-x-0 -top-8 h-8 bg-gradient-to-t from-[var(--panel-bg)] to-transparent" />
+        {/* 输入区域 */}
         <div className="mx-auto w-full max-w-4xl px-5 sm:px-7 lg:px-8">
           <MessageInput />
         </div>
+
+        {/* 生成中的扩展状态 (TPS 等) */}
+        {isStreaming && <ExtensionStatusBar />}
+
+        {/* 状态栏 */}
+        <StatusBar />
       </div>
-
-      {/* 生成中的扩展状态 (TPS 等) — 独立组件隔离渲染 */}
-      {isStreaming && <ExtensionStatusBar />}
-
-      <StatusBar />
     </div>
   );
 }

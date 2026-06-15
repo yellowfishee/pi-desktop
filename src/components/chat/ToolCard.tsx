@@ -30,7 +30,7 @@ function ToolCard({ block }: Props) {
     <div className="mb-0.5">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1.5 text-[11px] text-[var(--fg-muted)] hover:text-[var(--fg-color)] transition-colors group w-full text-left"
+        className="flex items-center gap-1.5 text-xxs text-[var(--fg-muted)] hover:text-[var(--fg-color)] transition-colors group w-full text-left"
       >
         <span className={`flex-shrink-0 ${statusColor}`}>
           {status === 'running' ? (
@@ -59,7 +59,7 @@ function ToolCard({ block }: Props) {
       </button>
 
       {expanded && (
-        <div className="mt-1 ml-5 pl-3 border-l-2 border-[var(--border-color)] text-[11px]">
+        <div className="mt-1 ml-5 pl-3 border-l-2 border-[var(--border-color)] text-xxs">
           {resultText ? (
             <pre className="max-h-48 overflow-auto whitespace-pre-wrap text-[var(--fg-muted)] leading-relaxed font-mono">
               {resultText}

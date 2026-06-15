@@ -107,7 +107,7 @@ export default function ExtensionDialogModal() {
           </h3>
           <div className="flex items-center gap-2">
             {countdown !== null && (
-              <span className="text-[10px] text-[var(--fg-subtle)]">
+              <span className="text-xxs text-[var(--fg-subtle)]">
                 {countdown}s
               </span>
             )}
@@ -173,17 +173,17 @@ export default function ExtensionDialogModal() {
         {/* 按钮区 */}
         <div className="flex items-center justify-end gap-2 border-t border-[var(--border-color)] bg-[var(--raised-bg)]/55 px-4 py-3">
           {dialog.method === 'select' && (
-            <span className="flex-1 text-[10px] text-[var(--fg-subtle)]">
+            <span className="flex-1 text-xxs text-[var(--fg-subtle)]">
               ↑↓ 选择 · Enter 确认 · Esc 取消
             </span>
           )}
           {dialog.method === 'input' && (
-            <span className="flex-1 text-[10px] text-[var(--fg-subtle)]">
+            <span className="flex-1 text-xxs text-[var(--fg-subtle)]">
               Enter 确认 · Esc 取消
             </span>
           )}
           {dialog.method === 'editor' && (
-            <span className="flex-1 text-[10px] text-[var(--fg-subtle)]">
+            <span className="flex-1 text-xxs text-[var(--fg-subtle)]">
               ⌘/Ctrl + Enter 确认 · Esc 取消
             </span>
           )}

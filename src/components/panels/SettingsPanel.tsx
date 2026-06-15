@@ -329,7 +329,7 @@ export default function SettingsPanel() {
                       <button
                         key={n}
                         onClick={() => setFontSize(`${n}px`)}
-                        className={`px-2 py-1 rounded text-[10px] font-medium transition-all ${
+                        className={`px-2 py-1 rounded text-xxs font-medium transition-all ${
                           parsePx(fontSize) === n
                             ? 'bg-[var(--accent)] text-white shadow-sm'
                             : 'bg-[var(--raised-bg)] text-[var(--fg-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)]'
@@ -352,7 +352,7 @@ export default function SettingsPanel() {
               </Field>
               {/* ── 修复主题 ─────────────────────────── */}
               <Field label="修复导出主题">
-                <p className="text-[11px] text-[var(--fg-muted)] leading-relaxed">
+                <p className="text-xxs text-[var(--fg-muted)] leading-relaxed">
                   如果导出 HTML 提示 &quot;Theme not found&quot;，点击下方按钮自动修复并重启 pi 进程。
                 </p>
                 <div className="flex gap-2 mt-1.5">
@@ -547,17 +547,17 @@ function ActiveExtensions() {
   ];
 
   if (entries.length === 0) {
-    return <p className="text-[11px] text-[var(--fg-muted)]">暂无活跃扩展</p>;
+    return <p className="text-xxs text-[var(--fg-muted)]">暂无活跃扩展</p>;
   }
 
   return (
     <div className="space-y-1.5">
       {entries.map(({ key, type, value }) => (
-        <div key={key} className="flex items-center gap-2 text-[11px]">
+        <div key={key} className="flex items-center gap-2 text-xxs">
           <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
           <span className="text-[var(--fg-muted)]">{key}</span>
-          <span className="text-[var(--fg-subtle)] text-[10px]">{type}</span>
-          {value && <span className="text-[var(--fg-muted)] text-[10px]">— {value.replace(/\u001b\[[0-9;]*m/g, '')}</span>}
+          <span className="text-[var(--fg-subtle)] text-xxs">{type}</span>
+          {value && <span className="text-[var(--fg-muted)] text-xxs">— {value.replace(/\u001b\[[0-9;]*m/g, '')}</span>}
         </div>
       ))}
     </div>

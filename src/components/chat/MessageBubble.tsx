@@ -324,7 +324,7 @@ function UserBubble({ message }: Props) {
                 }}
               />
               <div className="flex items-center justify-end gap-2 mt-2">
-                <span className="flex-1 text-[10px] text-[var(--fg-subtle)]">
+                <span className="flex-1 text-xxs text-[var(--fg-subtle)]">
                   编辑后将以 Fork 方式发送到新分支
                 </span>
                 <button
@@ -352,10 +352,10 @@ function UserBubble({ message }: Props) {
           )}
         </div>
         <div className="mt-1 flex items-center justify-end gap-1">
-          <span className="text-[10px] text-[var(--fg-subtle)] opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="text-xxs text-[var(--fg-subtle)] opacity-0 group-hover:opacity-100 transition-opacity">
             双击可编辑重发
           </span>
-          <span className="text-[10px] text-[var(--fg-subtle)]">
+          <span className="text-xxs text-[var(--fg-subtle)]">
             {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
@@ -422,7 +422,7 @@ function AssistantBubble({ message }: Props) {
 
       {message.isComplete && message.stopReason !== 'error' && (
         <div className="mt-2 flex items-center gap-1">
-          <button onClick={handleCopy} className="rounded px-1.5 py-0.5 text-[10px] text-[var(--fg-subtle)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)] transition-colors">
+          <button onClick={handleCopy} className="rounded px-1.5 py-0.5 text-xxs text-[var(--fg-subtle)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)] transition-colors">
             {copied ? '已复制' : '复制'}
           </button>
           <FeedbackBtn label="有用" activeLabel="已反馈" onClick={() => {}} />
@@ -485,7 +485,7 @@ function RetrySvg() {
 function SystemBubble({ message }: Props) {
   return (
     <article className="mb-7 flex justify-center">
-      <div className="flex max-w-[80%] items-center gap-1.5 rounded-full border border-[var(--border-color)] bg-[var(--raised-bg)] px-3 py-1.5 text-[11px] text-[var(--fg-muted)]">
+      <div className="flex max-w-[80%] items-center gap-1.5 rounded-full border border-[var(--border-color)] bg-[var(--raised-bg)] px-3 py-1.5 text-xxs text-[var(--fg-muted)]">
         <IconCompress className="h-3 w-3 flex-shrink-0" />
         <span>{message.summary || '上下文已压缩'}</span>
       </div>
@@ -506,7 +506,7 @@ function BashBubble({ message }: Props) {
         <IconTerminal className="h-3.5 w-3.5" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="mb-2 font-mono text-[11px] text-[var(--fg-muted)]">
+        <div className="mb-2 font-mono text-xxs text-[var(--fg-muted)]">
           <span className="select-none text-gray-400 mr-1.5">$</span>{message.command}
         </div>
         <div className="max-h-80 overflow-y-auto overflow-x-auto rounded-lg border border-[var(--border-color)] bg-[var(--surface-bg)] p-3 font-mono text-xs leading-relaxed text-[var(--fg-color)]">
@@ -516,14 +516,14 @@ function BashBubble({ message }: Props) {
           {truncated && !expanded && (
             <button
               onClick={() => setExpanded(true)}
-              className="text-blue-400 hover:text-blue-300 mt-1 text-[10px]"
+              className="text-blue-400 hover:text-blue-300 mt-1 text-xxs"
             >
               显示全部 ({lines.length} 行)
             </button>
           )}
         </div>
         {message.exitCode !== undefined && (
-          <div className={`text-[10px] mt-1.5 ${message.exitCode === 0 ? 'text-green-500/80' : 'text-red-500/80'}`}>
+          <div className={`text-xxs mt-1.5 ${message.exitCode === 0 ? 'text-green-500/80' : 'text-red-500/80'}`}>
             退出码: {message.exitCode}
           </div>
         )}
@@ -542,7 +542,7 @@ function FeedbackBtn({ label, activeLabel, onClick }: { label: string; activeLab
   return (
     <button
       onClick={handleClick}
-      className={`rounded-md px-1.5 py-0.5 text-[10px] transition-colors ${
+      className={`rounded-md px-1.5 py-0.5 text-xxs transition-colors ${
         active ? 'text-[var(--accent)]' : 'text-[var(--fg-subtle)]'
       } hover:text-[var(--fg-color)] hover:bg-[var(--hover-bg)]`}
     >

@@ -189,26 +189,6 @@ export default function MessageInput() {
     }
   }, [text, isStreaming, attachments]);
 
-  // ── 格式插入 ──────────────────────────────────
-  const insertFormat = useCallback((prefix: string, suffix: string) => {
-    const el = textareaRef.current;
-    if (!el) return;
-    const start = el.selectionStart || 0;
-    const end = el.selectionEnd || 0;
-    const selected = text.slice(start, end);
-    const newText = text.slice(0, start) + prefix + selected + suffix + text.slice(end);
-    setText(newText);
-    setTimeout(() => {
-      el.focus();
-      if (selected) {
-        el.setSelectionRange(start + prefix.length, end + prefix.length);
-      } else {
-        const pos = start + prefix.length;
-        el.setSelectionRange(pos, pos);
-      }
-    }, 0);
-  }, [text]);
-
   const handleAbort = useCallback(async () => {
     // 乐观更新：立即停止流式状态
     useSessionStore.getState().setStreaming(false);
@@ -366,7 +346,7 @@ export default function MessageInput() {
         className={`overflow-hidden rounded-xl border transition focus-within:border-[var(--border-hover)] shadow-[0_10px_32px_rgb(0_0_0/0.08)] dark:shadow-[0_12px_36px_rgb(0_0_0/0.35)] ${
           isDragOver
             ? 'border-[var(--accent)] bg-[var(--accent)]/5 ring-2 ring-[var(--accent)]/20'
-            : 'border-[var(--border-color)] bg-[var(--surface-bg)]'
+            : 'border-[var(--border-color)] bg-[var(--raised-bg)]'
         }`}
       >
         {/* ── 附件预览 ─────────────────────────────── */}
@@ -393,64 +373,46 @@ export default function MessageInput() {
           </div>
         )}
 
-        {/* ── 格式工具栏 ─────────────────────────────── */}
-        <div className="flex items-center gap-0.5 px-3 pt-2">
-          <FormatBtn title="加粗 (Cmd+B)" onClick={() => insertFormat('**', '**')}>
-            <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"/></svg>
-          </FormatBtn>
-          <FormatBtn title="斜体 (Cmd+I)" onClick={() => insertFormat('*', '*')}>
-            <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/></svg>
-          </FormatBtn>
-          <FormatBtn title="行内代码 (Cmd+E)" onClick={() => insertFormat('`', '`')}>
-            <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
-          </FormatBtn>
-          <FormatBtn title="引用" onClick={() => insertFormat('> ', '')}>
-            <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/></svg>
-          </FormatBtn>
-        </div>
 
-        <textarea
-          ref={textareaRef}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onInput={handleInput}
-          onPaste={handlePaste}
-          placeholder={isStreaming ? '输入补充指令 (Enter 发送 steer)...' : '输入消息，让 Pi 编写代码、解释或检查...'}
-          rows={1}
-          className="max-h-[220px] min-h-[54px] w-full resize-none border-0 bg-transparent px-4 py-3 text-sm leading-relaxed text-[var(--fg-color)] placeholder:text-[var(--fg-subtle)] focus:outline-none"
-        />
 
-        <div className="flex items-center justify-between gap-2 border-t border-[var(--border-color)] bg-[var(--raised-bg)]/55 px-2 py-2">
-          <div className="flex items-center gap-2">
-            {/* ── + 按钮 ───────────────────────────── */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isStreaming}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--fg-subtle)] transition-colors hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)] disabled:cursor-not-allowed disabled:opacity-40"
-              title="添加图片"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
-            <span className="text-[10px] text-[var(--fg-subtle)]">
-              {isStreaming ? 'Enter 发送 steer · Shift+Enter 换行' : 'Enter 发送 · Shift+Enter 换行'}
-            </span>
-          </div>
+        <div className="flex items-end gap-1 px-2 pb-2">
+          {/* ── + 按钮 ───────────────────────────── */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isStreaming}
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-[var(--fg-subtle)] transition-colors hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)] disabled:cursor-not-allowed disabled:opacity-40"
+            title="添加图片"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
 
-          <div className="flex items-center gap-1.5">
-            {/* ── 队列状态 ─────────────────────────── */}
+          {/* ── 输入框 ──────────────────────────── */}
+          <textarea
+            ref={textareaRef}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onInput={handleInput}
+            onPaste={handlePaste}
+            placeholder={isStreaming ? '输入补充指令...' : '输入消息，让 Pi 编写代码、解释或检查...' }
+            rows={1}
+            className="max-h-[160px] min-h-[36px] flex-1 resize-none border-0 bg-transparent px-2 py-2 text-[var(--font-sm)] leading-relaxed text-[var(--fg-color)] placeholder:text-[var(--fg-subtle)] focus:outline-none"
+          />
+
+          {/* ── 发送/中止按钮 ─────────────────────── */}
+          <div className="flex items-center gap-1.5 pb-0.5">
             {queuedCount > 0 && (
-              <span className="text-[10px] text-[var(--fg-subtle)]">
+              <span className="text-xxs text-[var(--fg-subtle)]">
                 {steeringQueue.length > 0 && `${steeringQueue.length} 个等待中`}
                 {followUpQueue.length > 0 && ` · ${followUpQueue.length} followUp`}
               </span>
@@ -484,14 +446,4 @@ export default function MessageInput() {
   );
 }
 
-function FormatBtn({ title, onClick, children }: { title: string; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex h-6 w-6 items-center justify-center rounded text-[var(--fg-subtle)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)] transition-colors"
-      title={title}
-    >
-      {children}
-    </button>
-  );
-}
+

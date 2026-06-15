@@ -29,7 +29,7 @@ pub fn find_pi_with_path(preferred_path: Option<&str>) -> PiCheckResult {
     result
 }
 
-fn check_bash(_result: &mut PiCheckResult) {
+fn check_bash(result: &mut PiCheckResult) {
     #[cfg(not(target_os = "windows"))]
     return;
 

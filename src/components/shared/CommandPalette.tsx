@@ -252,7 +252,7 @@ export default function CommandPalette() {
             placeholder="搜索模型、会话、命令..."
             className="flex-1 border-0 bg-transparent text-sm text-[var(--fg-color)] placeholder:text-[var(--fg-subtle)] focus:outline-none"
           />
-          <span className="text-[10px] text-[var(--fg-subtle)]">Esc 关闭</span>
+          <span className="text-xxs text-[var(--fg-subtle)]">Esc 关闭</span>
         </div>
 
         {/* 结果列表 */}
@@ -274,7 +274,7 @@ export default function CommandPalette() {
                     : 'text-[var(--fg-color)] hover:bg-[var(--hover-bg)]'
                 }`}
               >
-                <span className="text-[10px] opacity-60 w-14 flex-shrink-0">
+                <span className="text-xxs opacity-60 w-14 flex-shrink-0">
                   {item.category}
                 </span>
                 <span className="truncate">{item.label}</span>
@@ -283,7 +283,7 @@ export default function CommandPalette() {
           )}
         </div>
 
-        <div className="border-t border-[var(--border-color)] bg-[var(--raised-bg)]/55 px-4 py-1.5 text-[10px] text-[var(--fg-subtle)]">
+        <div className="border-t border-[var(--border-color)] bg-[var(--raised-bg)]/55 px-4 py-1.5 text-xxs text-[var(--fg-subtle)]">
           ↑↓ 导航 · Enter 执行 · Esc 关闭
         </div>
       </div>

@@ -12,7 +12,7 @@ function ThinkingBlock({ thinking, isStreaming }: Props) {
     <div className="mb-1">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1.5 text-[11px] text-[var(--fg-subtle)] hover:text-[var(--fg-muted)] transition-colors group"
+        className="flex items-center gap-1.5 text-xxs text-[var(--fg-subtle)] hover:text-[var(--fg-muted)] transition-colors group"
       >
         <svg
           className={`h-2.5 w-2.5 flex-shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`}
@@ -32,7 +32,7 @@ function ThinkingBlock({ thinking, isStreaming }: Props) {
         )}
       </button>
       {expanded && (
-        <div className="mt-1 ml-4 pl-3 border-l-2 border-[var(--border-color)] text-[11px] text-[var(--fg-subtle)] leading-relaxed whitespace-pre-wrap">
+        <div className="mt-1 ml-4 pl-3 border-l-2 border-[var(--border-color)] text-xxs text-[var(--fg-subtle)] leading-relaxed whitespace-pre-wrap">
           {thinking}
         </div>
       )}
