@@ -406,7 +406,7 @@ export default function MessageInput() {
             onPaste={handlePaste}
             placeholder={isStreaming ? '输入补充指令...' : '输入消息，让 Pi 编写代码、解释或检查...' }
             rows={1}
-            className="max-h-[160px] min-h-[36px] flex-1 resize-none border-0 bg-transparent px-2 py-2 text-[var(--font-sm)] leading-relaxed text-[var(--fg-color)] placeholder:text-[var(--fg-subtle)] focus:outline-none"
+            className="max-h-[160px] min-h-[36px] flex-1 resize-none border-0 bg-transparent px-2 py-2 text-sm leading-relaxed text-[var(--fg-color)] placeholder:text-[var(--fg-subtle)] focus:outline-none"
           />
 
           {/* ── 发送/中止按钮 ─────────────────────── */}

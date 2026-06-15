@@ -230,9 +230,9 @@ const MONO_FAMILIES: Record<string, string> = {
 };
 
 const FONT_SIZES: Record<string, { base: number; code: number; scale: Record<string, string> }> = {
-  small:  { base: 12, code: 11, scale: { '--font-xs': '0.65rem', '--font-sm': '0.75rem', '--font-base': '0.75rem', '--font-lg': '0.875rem', '--font-xl': '1rem' } },
-  medium: { base: 14, code: 13, scale: { '--font-xs': '0.7rem',  '--font-sm': '0.8rem',  '--font-base': '0.875rem', '--font-lg': '1rem',    '--font-xl': '1.125rem' } },
-  large:  { base: 16, code: 14, scale: { '--font-xs': '0.75rem', '--font-sm': '0.875rem','--font-base': '1rem',     '--font-lg': '1.125rem','--font-xl': '1.25rem' } },
+  small:  { base: 12, code: 11, scale: { '--font-2xs': '0.6875rem', '--font-xs': '0.75rem', '--font-sm': '0.8125rem', '--font-base': '0.875rem', '--font-lg': '1rem', '--font-xl': '1.125rem', '--font-2xl': '1.25rem' } },
+  medium: { base: 14, code: 13, scale: { '--font-2xs': '0.6875rem', '--font-xs': '0.75rem', '--font-sm': '0.8125rem', '--font-base': '0.875rem', '--font-lg': '1rem', '--font-xl': '1.125rem', '--font-2xl': '1.25rem' } },
+  large:  { base: 16, code: 14, scale: { '--font-2xs': '0.75rem', '--font-xs': '0.8125rem', '--font-sm': '0.875rem', '--font-base': '1rem', '--font-lg': '1.125rem', '--font-xl': '1.25rem', '--font-2xl': '1.375rem' } },
 };
 
 export function applyFontFamily(fontFamily: string) {
@@ -261,14 +261,16 @@ export function applyFontSize(fontSize: string) {
     // 用户自定义：尝试解析为数字
     const parsed = parseFloat(fontSize);
     base = isNaN(parsed) ? 14 : parsed;
-    code = base - 1;
+    code = Math.max(10, base - 1);
     const factor = base / 14;
     scale = {
-      '--font-xs': `${0.65 * factor}rem`,
-      '--font-sm': `${0.75 * factor}rem`,
+      '--font-2xs': `${0.6875 * factor}rem`,
+      '--font-xs': `${0.75 * factor}rem`,
+      '--font-sm': `${0.8125 * factor}rem`,
       '--font-base': `${0.875 * factor}rem`,
       '--font-lg': `${1 * factor}rem`,
       '--font-xl': `${1.125 * factor}rem`,
+      '--font-2xl': `${1.25 * factor}rem`,
     };
   }
 

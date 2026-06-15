@@ -315,29 +315,47 @@ export default function SettingsPanel() {
               </Field>
 
               <Field label="字号">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={10} max={28}
-                    value={parsePx(fontSize)}
-                    onChange={(e) => setFontSize(`${Math.max(10, Math.min(28, parseInt(e.target.value) || 14))}px`)}
-                    className="w-16 rounded-md border border-[var(--border-color)] bg-[var(--surface-bg)] px-2 py-1.5 text-xs text-center text-[var(--fg-color)] focus:border-[var(--border-hover)] focus:outline-none focus:shadow-[0_0_0_2px_var(--accent-soft)] [appearance:textfield]"
-                  />
-                  <span className="text-xs text-[var(--fg-subtle)]">px</span>
-                  <div className="flex gap-1 ml-2">
-                    {[12, 14, 16, 18, 20].map((n) => (
+                <div className="space-y-3">
+                  {/* 滑块 */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-[var(--fg-subtle)] w-6">10</span>
+                    <input
+                      type="range"
+                      min={10}
+                      max={22}
+                      step={1}
+                      value={parsePx(fontSize)}
+                      onChange={(e) => setFontSize(`${e.target.value}px`)}
+                      className="flex-1 h-1.5 appearance-none rounded-full bg-[var(--border-color)] accent-[var(--accent)] cursor-pointer"
+                    />
+                    <span className="text-xs text-[var(--fg-subtle)] w-6 text-right">22</span>
+                  </div>
+
+                  {/* 预设按钮 */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {[11, 12, 13, 14, 15, 16, 18, 20].map((n) => (
                       <button
                         key={n}
                         onClick={() => setFontSize(`${n}px`)}
-                        className={`px-2 py-1 rounded text-xxs font-medium transition-all ${
+                        className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
                           parsePx(fontSize) === n
                             ? 'bg-[var(--accent)] text-white shadow-sm'
                             : 'bg-[var(--raised-bg)] text-[var(--fg-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--fg-color)]'
                         }`}
                       >
-                        {n}
+                        {n}px
                       </button>
                     ))}
+                  </div>
+
+                  {/* 实时预览 */}
+                  <div className="rounded-lg border border-[var(--border-color)] bg-[var(--raised-bg)] px-4 py-3 mt-2">
+                    <div className="text-xxs text-[var(--fg-subtle)] mb-2 uppercase tracking-wide">预览</div>
+                    <div className="space-y-1.5" style={{ fontSize: `${parsePx(fontSize)}px` }}>
+                      <div className="font-bold">标题文本 Preview Heading</div>
+                      <div className="text-[var(--fg-muted)]">正文文本 The quick brown fox jumps over the lazy dog. 中文预览文本。</div>
+                      <div className="font-mono text-[var(--accent)]">代码文本 const x = 42;</div>
+                    </div>
                   </div>
                 </div>
               </Field>

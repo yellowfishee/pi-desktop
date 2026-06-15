@@ -74,8 +74,8 @@ function MarkdownContent({ text, isStreaming }: Props) {
               {children}
             </blockquote>
           ),
-          h1: ({ children }) => <h1 className="text-base font-bold mt-4 mb-2">{children}</h1>,
-          h2: ({ children }) => <h2 className="text-sm font-bold mt-3 mb-1.5">{children}</h2>,
+          h1: ({ children }) => <h1 className="text-lg font-bold mt-4 mb-2">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-base font-bold mt-3 mb-1.5">{children}</h2>,
           h3: ({ children }) => <h3 className="text-sm font-semibold mt-2 mb-1">{children}</h3>,
           a: ({ children, href }) => (
             <a href={href} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] underline underline-offset-2">

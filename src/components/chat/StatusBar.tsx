@@ -13,7 +13,7 @@ export default function StatusBar() {
   if (!isStreaming && !isCompacting && queuedCount === 0) return null;
 
   return (
-    <div className="mx-auto flex min-h-[28px] w-full max-w-4xl flex-shrink-0 items-center gap-2 px-5 pb-1.5 text-[var(--font-xs)] sm:px-7 lg:px-8">
+    <div className="mx-auto flex min-h-[28px] w-full max-w-4xl flex-shrink-0 items-center gap-2 px-5 pb-1.5 text-xs sm:px-7 lg:px-8">
       {/* 状态文字 */}
       {isStreaming && (
         <span className="flex items-center gap-1.5 whitespace-nowrap text-[var(--accent)]">
