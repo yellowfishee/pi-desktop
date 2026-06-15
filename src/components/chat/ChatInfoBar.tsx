@@ -16,11 +16,7 @@ export default function ChatInfoBar() {
   const activeSessionFile = useSessionStore((s) => s.activeSessionFile);
   const activeProjectDir = useSessionStore((s) => s.activeProjectDir);
   const refreshStats = useSessionStore((s) => s.refreshStats);
-  const [changedFiles, setChangedFiles] = useState(0);
   const [gitBranch, setGitBranch] = useState('');
-  const [gitStatus, setGitStatus] = useState({ modified: 0, added: 0, deleted: 0, untracked: 0 });
-  const [gitAdditions, setGitAdditions] = useState(0);
-  const [gitDeletions, setGitDeletions] = useState(0);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [thinkingMenuOpen, setThinkingMenuOpen] = useState(false);
   const modelBtnRef = useRef<HTMLButtonElement>(null);
@@ -50,48 +46,15 @@ export default function ChatInfoBar() {
   useEffect(() => {
     if (!activeProjectDir) return;
     
-    const parseGitStatus = (files: any[]) => {
-      const status = { modified: 0, added: 0, deleted: 0, untracked: 0 };
-      let additions = 0;
-      let deletions = 0;
-      
-      for (const f of files) {
-        const code = f.status?.trim() || '';
-        if (code === '??') {
-          status.untracked++;
-        } else if (code.startsWith('A') || code === 'A') {
-          status.added++;
-        } else if (code.startsWith('D') || code === 'D') {
-          status.deleted++;
-        } else if (code.startsWith('M') || code === 'M' || code.includes('M')) {
-          status.modified++;
-        }
-        additions += f.additions || 0;
-        deletions += f.deletions || 0;
-      }
-      
-      return { status, additions, deletions };
-    };
-    
     const interval = setInterval(async () => {
       try {
         const changes = await listGitChanges(activeProjectDir);
-        setChangedFiles(changes.files?.length || 0);
         setGitBranch(changes.branch || '');
-        const { status, additions, deletions } = parseGitStatus(changes.files || []);
-        setGitStatus(status);
-        setGitAdditions(additions);
-        setGitDeletions(deletions);
       } catch { /* ignore */ }
     }, 5000);
     
     listGitChanges(activeProjectDir).then((c) => {
-      setChangedFiles(c.files?.length || 0);
       setGitBranch(c.branch || '');
-      const { status, additions, deletions } = parseGitStatus(c.files || []);
-      setGitStatus(status);
-      setGitAdditions(additions);
-      setGitDeletions(deletions);
     }).catch(() => {});
     return () => clearInterval(interval);
   }, [activeProjectDir]);
@@ -292,44 +255,6 @@ export default function ChatInfoBar() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
               </svg>
               <span className="font-medium text-[var(--fg-color)]">{gitBranch}</span>
-              
-              {/* 变更统计 */}
-              {changedFiles > 0 && (
-                <span className="flex items-center gap-1">
-                  {gitStatus.modified > 0 && (
-                    <span className="rounded bg-blue-500/15 px-1 py-0.5 text-blue-600 dark:text-blue-400">
-                      M{gitStatus.modified}
-                    </span>
-                  )}
-                  {gitStatus.added > 0 && (
-                    <span className="rounded bg-green-500/15 px-1 py-0.5 text-green-600 dark:text-green-400">
-                      A{gitStatus.added}
-                    </span>
-                  )}
-                  {gitStatus.deleted > 0 && (
-                    <span className="rounded bg-red-500/15 px-1 py-0.5 text-red-600 dark:text-red-400">
-                      D{gitStatus.deleted}
-                    </span>
-                  )}
-                  {gitStatus.untracked > 0 && (
-                    <span className="rounded bg-gray-500/15 px-1 py-0.5 text-gray-600 dark:text-gray-400">
-                      ?{gitStatus.untracked}
-                    </span>
-                  )}
-                </span>
-              )}
-              
-              {/* 行数变更 */}
-              {(gitAdditions > 0 || gitDeletions > 0) && (
-                <span className="flex items-center gap-0.5 text-xxs">
-                  {gitAdditions > 0 && (
-                    <span className="text-green-600 dark:text-green-400">+{gitAdditions}</span>
-                  )}
-                  {gitDeletions > 0 && (
-                    <span className="text-red-600 dark:text-red-400">-{gitDeletions}</span>
-                  )}
-                </span>
-              )}
             </span>
           </>
         )}
