@@ -10,7 +10,6 @@ export default function ChatInfoBar() {
   const thinkingLevel = useSessionStore((s) => s.thinkingLevel);
   const availableModels = useSessionStore((s) => s.availableModels);
   const stats = useSessionStore((s) => s.stats);
-  const isStreaming = useSessionStore((s) => s.isStreaming);
   const sessionName = useSessionStore((s) => s.sessionName);
   const messageCount = useSessionStore((s) => s.messageCount);
   const activeSessionFile = useSessionStore((s) => s.activeSessionFile);
@@ -22,12 +21,11 @@ export default function ChatInfoBar() {
   const modelBtnRef = useRef<HTMLButtonElement>(null);
   const thinkingBtnRef = useRef<HTMLButtonElement>(null);
 
-  // 流式时每 2 秒刷新 Token 统计
+  // 每 2 秒刷新 Token 统计
   useEffect(() => {
-    if (!isStreaming) return;
     const interval = setInterval(() => refreshStats(), 2000);
     return () => clearInterval(interval);
-  }, [isStreaming, refreshStats]);
+  }, [refreshStats]);
 
   // 监听斜杠命令触发的模型/思考下拉
   useEffect(() => {
