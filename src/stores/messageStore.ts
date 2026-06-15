@@ -23,6 +23,11 @@ export type BatchUpdate = Map<number, BatchDelta>;
 interface MessageStoreState {
   messages: UIMessage[];
 
+  // 流式 token 计数（实时估算）
+  streamingTokens: { input: number; output: number };
+  addStreamingTokens: (count: number) => void;
+  resetStreamingTokens: () => void;
+
   // 操作
   setMessages: (messages: UIMessage[]) => void;
   clearMessages: () => void;
@@ -219,6 +224,13 @@ function applyDeltasToContent(
 
 export const useMessageStore = create<MessageStoreState>((set, get) => ({
   messages: [],
+
+  // 流式 token 计数（实时估算，中文约 1 字 ≈ 0.5 token，英文约 1 词 ≈ 1.3 token）
+  streamingTokens: { input: 0, output: 0 },
+  addStreamingTokens: (count) => set((state) => ({
+    streamingTokens: { ...state.streamingTokens, output: state.streamingTokens.output + count },
+  })),
+  resetStreamingTokens: () => set({ streamingTokens: { input: 0, output: 0 } }),
 
   setMessages: (messages) => set({ messages: attachToolResults(messages) }),
 

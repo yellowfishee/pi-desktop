@@ -60,9 +60,6 @@ export default function ChatInfoBar() {
   }, [activeProjectDir]);
 
   const contextPercent = stats?.contextUsage?.percent ?? null;
-  const tokensInput = stats?.tokens?.input || 0;
-  const tokensOutput = stats?.tokens?.output || 0;
-  const cost = stats?.cost || 0;
 
   const handleCycleModel = () => {
     setModelMenuOpen((o) => !o);
@@ -215,26 +212,8 @@ export default function ChatInfoBar() {
         )}
       </div>
 
-      {/* 第二行：统计信息（Token、成本、上下文、消息数） */}
+      {/* 第二行：统计信息（上下文、消息数） */}
       <div className="flex items-center gap-2 text-xxs text-[var(--fg-muted)] flex-wrap">
-        {/* Token / 成本 */}
-        {tokensInput > 0 && (
-          <span className="whitespace-nowrap">
-            <span className="text-[var(--fg-color)]">{tokensInput.toLocaleString()}</span>
-            <span className="text-[var(--fg-subtle)]"> in</span>
-            <span className="text-[var(--fg-subtle)]"> · </span>
-            <span className="text-[var(--fg-color)]">{tokensOutput.toLocaleString()}</span>
-            <span className="text-[var(--fg-subtle)]"> out</span>
-          </span>
-        )}
-        {cost > 0 && (
-          <span className="whitespace-nowrap text-[var(--fg-subtle)]">
-            · ${cost.toFixed(4)}
-          </span>
-        )}
-
-        {(tokensInput > 0 || cost > 0) && <span className="opacity-20">|</span>}
-
         {/* 上下文进度条 */}
         {contextPercent !== null && (
           <span className="flex items-center gap-1.5 whitespace-nowrap">
