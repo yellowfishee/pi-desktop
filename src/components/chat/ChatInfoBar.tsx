@@ -156,7 +156,7 @@ export default function ChatInfoBar() {
                   className="fixed z-50 min-w-[200px] max-h-[320px] overflow-y-auto rounded-lg border border-[var(--border-color)] bg-[var(--surface-bg)] shadow-xl"
                   style={{
                     left: (modelBtnRef.current?.getBoundingClientRect().left ?? 0) + 'px',
-                    top: (modelBtnRef.current?.getBoundingClientRect().bottom ?? 0) + 4 + 'px',
+                    bottom: (window.innerHeight - (modelBtnRef.current?.getBoundingClientRect().top ?? 0)) + 4 + 'px',
                   }}
                 >
                   {availableModels.map((m) => {
@@ -208,7 +208,7 @@ export default function ChatInfoBar() {
                   className="fixed z-50 min-w-[120px] max-h-[320px] overflow-y-auto rounded-lg border border-[var(--border-color)] bg-[var(--surface-bg)] shadow-xl"
                   style={{
                     left: (thinkingBtnRef.current?.getBoundingClientRect().left ?? 0) + 'px',
-                    top: (thinkingBtnRef.current?.getBoundingClientRect().bottom ?? 0) + 4 + 'px',
+                    bottom: (window.innerHeight - (thinkingBtnRef.current?.getBoundingClientRect().top ?? 0)) + 4 + 'px',
                   }}
                 >
                   {THINKING_LEVELS.map((level) => {
