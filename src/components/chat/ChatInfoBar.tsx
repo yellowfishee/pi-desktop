@@ -45,14 +45,14 @@ export default function ChatInfoBar() {
   useEffect(() => { refreshStats(); }, [refreshStats]);
   useEffect(() => {
     if (!activeProjectDir) return;
-    
+
     const interval = setInterval(async () => {
       try {
         const changes = await listGitChanges(activeProjectDir);
         setGitBranch(changes.branch || '');
       } catch { /* ignore */ }
     }, 5000);
-    
+
     listGitChanges(activeProjectDir).then((c) => {
       setGitBranch(c.branch || '');
     }).catch(() => {});
@@ -87,7 +87,8 @@ export default function ChatInfoBar() {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-5 sm:px-7 lg:px-8 pb-2">
-      <div className="flex items-center gap-2 text-xxs text-[var(--fg-muted)] overflow-x-auto pb-1 [&>*]:flex-shrink-0 scrollbar-thin">
+      {/* 第一行：核心控制项（模型 + 思考深度） */}
+      <div className="flex items-center gap-2 text-xxs text-[var(--fg-muted)] pb-1">
         {/* 会话名 */}
         {sessionName && (
           <span className="max-w-[120px] truncate font-medium text-[var(--fg-muted)]">
@@ -95,8 +96,7 @@ export default function ChatInfoBar() {
           </span>
         )}
 
-        {/* 分隔 */}
-        <span className="opacity-20">|</span>
+        {sessionName && <span className="opacity-20">|</span>}
 
         {/* 模型 — 点击弹出列表 */}
         <div className="relative flex-shrink-0">
@@ -201,9 +201,22 @@ export default function ChatInfoBar() {
             )}
         </div>
 
-        {/* 分隔 */}
-        <span className="opacity-20">|</span>
+        {/* 弹性填充 */}
+        <span className="flex-1 min-w-0" />
 
+        {/* Git 分支（放右侧） */}
+        {gitBranch && (
+          <span className="flex items-center gap-1 whitespace-nowrap">
+            <svg className="h-3 w-3 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+            <span className="font-medium text-[var(--fg-color)]">{gitBranch}</span>
+          </span>
+        )}
+      </div>
+
+      {/* 第二行：统计信息（Token、成本、上下文、消息数） */}
+      <div className="flex items-center gap-2 text-xxs text-[var(--fg-muted)] flex-wrap">
         {/* Token / 成本 */}
         {tokensInput > 0 && (
           <span className="whitespace-nowrap">
@@ -220,8 +233,7 @@ export default function ChatInfoBar() {
           </span>
         )}
 
-        {/* 分隔 */}
-        <span className="opacity-20">|</span>
+        {(tokensInput > 0 || cost > 0) && <span className="opacity-20">|</span>}
 
         {/* 上下文进度条 */}
         {contextPercent !== null && (
@@ -241,26 +253,12 @@ export default function ChatInfoBar() {
           </span>
         )}
 
+        {contextPercent !== null && <span className="opacity-20">|</span>}
+
         {/* 消息数 */}
         <span className="text-[var(--fg-subtle)] whitespace-nowrap">
           {messageCount || 0} 条消息
         </span>
-
-        {/* Git 分支 */}
-        {gitBranch && (
-          <>
-            <span className="opacity-20">|</span>
-            <span className="flex items-center gap-1.5 whitespace-nowrap">
-              <svg className="h-3 w-3 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-              <span className="font-medium text-[var(--fg-color)]">{gitBranch}</span>
-            </span>
-          </>
-        )}
-
-        {/* 弹性填充 */}
-        <span className="flex-1" />
       </div>
     </div>
   );
